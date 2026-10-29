@@ -1,0 +1,98 @@
+name: PrivacyPods
+
+options:
+  bundleIdPrefix: dev.wesley
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+  groupSortPosition: top
+  deploymentTarget:
+    macOS: "26.0"
+
+configs:
+  Debug: debug
+  Release: release
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    SWIFT_UPCOMING_FEATURE_EXISTENTIAL_ANY: YES
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_HARDENED_RUNTIME: YES
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+    DEAD_CODE_STRIPPING: YES
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    ALWAYS_SEARCH_USER_PATHS: NO
+    CLANG_ENABLE_OBJC_WEAK: YES
+    GCC_WARN_UNDECLARED_SELECTOR: YES
+  configs:
+    Debug:
+      ENABLE_TESTABILITY: YES
+      SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
+      SWIFT_OPTIMIZATION_LEVEL: "-Onone"
+    Release:
+      SWIFT_COMPILATION_MODE: wholemodule
+
+targets:
+  PrivacyPods:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources/PrivacyPods
+        excludes:
+          - "**/*.md"
+      - path: Supporting/AppIcon.icns
+    settings:
+      base:
+        PRODUCT_NAME: PrivacyPods
+        PRODUCT_BUNDLE_IDENTIFIER: dev.wesley.privacypods
+        COMBINE_HIDPI_IMAGES: YES
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks"
+    entitlements:
+      path: Supporting/PrivacyPods.entitlements
+      properties:
+        com.apple.security.app-sandbox: false
+    info:
+      path: Supporting/Info.plist
+      properties:
+        CFBundleName: PrivacyPods
+        CFBundleDisplayName: PrivacyPods
+        CFBundleExecutable: "$(EXECUTABLE_NAME)"
+        CFBundleIdentifier: "$(PRODUCT_BUNDLE_IDENTIFIER)"
+        CFBundlePackageType: APPL
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        LSMinimumSystemVersion: "$(MACOSX_DEPLOYMENT_TARGET)"
+        NSPrincipalClass: NSApplication
+        LSUIElement: true
+        CFBundleIconFile: AppIcon
+        NSHumanReadableCopyright: "Copyright (c) 2026 Wesley Coetzee."
+        NSMotionUsageDescription: "PrivacyPods reads AirPods head motion to tell which display you are looking at."
+        NSBluetoothAlwaysUsageDescription: "PrivacyPods reads the signal strength of your connected AirPods to tell when you have walked away from the Mac."
+    dependencies:
+      - sdk: CoreMotion.framework
+      - sdk: ScreenCaptureKit.framework
+      - sdk: IOBluetooth.framework
+      - sdk: CoreImage.framework
+      - sdk: Metal.framework
+      - sdk: MetalKit.framework
+      - sdk: ServiceManagement.framework
+      - sdk: Carbon.framework
+    scheme:
+      testTargets:
+        - PrivacyPodsTests
+
+  PrivacyPodsTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: Tests/PrivacyPodsTests
+    dependencies:
+      - target: PrivacyPods
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.wesley.privacypods.tests
+        GENERATE_INFOPLIST_FILE: YES
+        BUNDLE_LOADER: "$(TEST_HOST)"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/PrivacyPods.app/Contents/MacOS/PrivacyPods"
