@@ -74,6 +74,7 @@ targets:
       - sdk: CoreMotion.framework
       - sdk: ScreenCaptureKit.framework
       - sdk: IOBluetooth.framework
+      - sdk: CoreBluetooth.framework
       - sdk: CoreImage.framework
       - sdk: Metal.framework
       - sdk: MetalKit.framework

@@ -47,7 +47,9 @@ final class PresenceEngine: PresenceProviding {
 
     func start() {
         guard ticker == nil else { return }
-        proximity.start()
+        // Proximity starts with the first worn sample instead (see `ingest`): it only corroborates
+        // a walk-away from AirPods that were on, and listing paired devices raises the Bluetooth
+        // prompt, which should come when the AirPods connect rather than the moment the app opens.
         ticker = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self else { return }
@@ -76,6 +78,7 @@ final class PresenceEngine: PresenceProviding {
         case .wearState(let wear):
             evidence.observe(wear: wear, at: timeSource.now)
             if !wear.isWorn { gait.reset() }
+            if wear.isWorn, ticker != nil { proximity.start() }
         }
         evaluate()
     }

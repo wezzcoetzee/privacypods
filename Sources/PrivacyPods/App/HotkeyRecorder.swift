@@ -12,14 +12,24 @@ struct HotkeyRecorder: View {
     @State private var isRecording = false
 
     var body: some View {
-        Button(isRecording ? "Press a combination…" : hotkey.label) { isRecording = true }
+        Button(isRecording ? "Press shortcut, or Esc" : hotkey.label) { isRecording = true }
             .background(KeyCapture(isRecording: $isRecording) { hotkey = $0 })
+            .help("Click, then press a key with ⌃ or ⌥, plus ⇧ or ⌘ if you like. Esc cancels.")
+            .accessibilityHint(isRecording ? "Press the new shortcut, or Escape to cancel" : "Records a new shortcut")
     }
 }
 
 extension Hotkey {
     /// Menu-style label, e.g. `⌃⌥⌘R`.
     var label: String { modifiers.symbols + Self.keyLabels[keyCode, default: "Key \(keyCode)"] }
+
+    /// The character an `NSMenuItem` needs to show this hotkey, or `nil` for keys a menu cannot
+    /// spell (function and arrow keys), which then simply go unshown.
+    var keyEquivalent: String? {
+        guard let key = Self.keyLabels[keyCode] else { return nil }
+        if key == "Space" { return " " }
+        return key.count == 1 && !"←→↓↑".contains(key) ? key.lowercased() : nil
+    }
 
     /// Virtual key codes are a fixed hardware map, not a character set: the label is what the
     /// key is called, not what it types on the current layout.
@@ -40,12 +50,20 @@ extension Hotkey {
 }
 
 extension Hotkey.Modifiers {
+    private static let eventFlagPairs: [(Hotkey.Modifiers, NSEvent.ModifierFlags)] = [
+        (.command, .command), (.option, .option), (.control, .control), (.shift, .shift),
+    ]
+
+    var eventFlags: NSEvent.ModifierFlags {
+        Self.eventFlagPairs.reduce(into: []) { flags, pair in
+            if contains(pair.0) { flags.insert(pair.1) }
+        }
+    }
+
     init(_ flags: NSEvent.ModifierFlags) {
-        self = []
-        if flags.contains(.command) { insert(.command) }
-        if flags.contains(.option) { insert(.option) }
-        if flags.contains(.control) { insert(.control) }
-        if flags.contains(.shift) { insert(.shift) }
+        self = Self.eventFlagPairs.reduce(into: []) { modifiers, pair in
+            if flags.contains(pair.1) { modifiers.insert(pair.0) }
+        }
     }
 }
 
@@ -71,7 +89,7 @@ private struct KeyCapture: NSViewRepresentable {
 
 /// Invisible while idle; while it holds first responder it swallows one key combination.
 private final class CaptureView: NSView {
-    /// `nil` means the user cancelled, with Escape, a bare key, or by clicking elsewhere.
+    /// `nil` means the user cancelled, with Escape or by clicking elsewhere.
     var finished: ((Hotkey?) -> Void)?
 
     /// `kVK_Escape`, spelled out rather than dragging Carbon into this module for one constant.
@@ -90,9 +108,15 @@ private final class CaptureView: NSView {
 
     override func keyDown(with event: NSEvent) {
         let modifiers = Hotkey.Modifiers(event.modifierFlags)
-        // A hotkey with no modifiers would swallow that key in every other app on the Mac.
-        guard event.keyCode != Self.escapeKeyCode, !modifiers.isEmpty else {
+        guard event.keyCode != Self.escapeKeyCode else {
             finished?(nil)
+            return
+        }
+        // A global hotkey takes its key away from every other app on the Mac. Without ⌃ or ⌥ it
+        // would be a plain letter, a capital, or a standard ⌘ command like ⌘C. Keep listening
+        // rather than cancelling, so a stray keypress does not lose the user's place.
+        guard !modifiers.isDisjoint(with: [.control, .option]) else {
+            NSSound.beep()
             return
         }
         finished?(Hotkey(keyCode: UInt32(event.keyCode), modifiers: modifiers))

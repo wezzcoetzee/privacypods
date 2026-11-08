@@ -23,7 +23,7 @@ final class BlurOverlayController: NSObject, OverlayControlling {
     private var surfaceAvailability: [DisplayID: CaptureAvailability] = [:]
     /// The last request from the engine. `nil` until the first `setBlurred`, which is the only
     /// thing that can establish a radius.
-    private var request: (displays: Set<DisplayID>, radius: Double)?
+    private var request: (displays: Set<DisplayID>, radius: Double, notices: [DisplayID: String])?
 
     override init() {
         (captureEvents, captureContinuation) = AsyncStream.makeStream()
@@ -41,8 +41,8 @@ final class BlurOverlayController: NSObject, OverlayControlling {
         captureContinuation.finish()
     }
 
-    func setBlurred(_ displays: Set<DisplayID>, radius: Double) {
-        request = (displays, radius)
+    func setBlurred(_ displays: Set<DisplayID>, radius: Double, notices: [DisplayID: String]) {
+        request = (displays, radius, notices)
         apply()
     }
 
@@ -61,7 +61,7 @@ final class BlurOverlayController: NSObject, OverlayControlling {
         let radius = request?.radius ?? 0
 
         for id in wanted {
-            surface(for: id)?.show(radius: radius)
+            surface(for: id)?.show(radius: radius, notice: request?.notices[id])
         }
         for (id, surface) in surfaces where !wanted.contains(id) {
             surface.hide()

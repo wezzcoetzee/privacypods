@@ -38,3 +38,6 @@ spike/*.app
 
 # Release artefacts
 dist/
+
+# Local tool cache
+.impeccable/hook.cache.json

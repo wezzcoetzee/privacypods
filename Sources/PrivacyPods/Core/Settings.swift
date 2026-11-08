@@ -13,8 +13,17 @@ enum BlurMode: String, Hashable, Sendable, Codable, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .off: "Off"
-        case .whenLookingAway: "When looking away"
-        case .unfocusedDisplays: "Unfocused displays"
+        case .whenLookingAway: "When you look away"
+        case .unfocusedDisplays: "Displays you're not looking at"
+        }
+    }
+
+    /// Title case, for the menu bar's Blur submenu.
+    var menuTitle: String {
+        switch self {
+        case .off: "Off"
+        case .whenLookingAway: "When You Look Away"
+        case .unfocusedDisplays: "Displays You're Not Looking At"
         }
     }
 }
@@ -102,6 +111,8 @@ struct Hotkey: Hashable, Sendable, Codable {
 /// Everything the user can change. Persisted whole as JSON in `UserDefaults`.
 struct AppSettings: Hashable, Sendable, Codable {
     var isEnabled: Bool = true
+    /// When a timed pause ends. `nil` with `isEnabled` off is a pause until the user resumes.
+    var resumeAt: Date?
     var blurMode: BlurMode = .whenLookingAway
     var awayPolicy: AwayPolicy = .default
     var failMode: FailMode = .open
@@ -113,6 +124,11 @@ struct AppSettings: Hashable, Sendable, Codable {
     var launchAtLogin: Bool = false
     /// `CIGaussianBlur` radius in points.
     var blurRadius: Double = 70
+    /// Set once a lock PrivacyPods started has been confirmed, so the Status window stops offering
+    /// a test.
+    var lockTested: Bool = false
+    /// Set once the first Status window has offered Launch at login, so it is offered once.
+    var launchAtLoginOffered: Bool = false
 
     /// The `UserDefaults` key the settings store reads and writes.
     static let defaultsKey = "dev.wesley.privacypods.settings"
@@ -120,8 +136,8 @@ struct AppSettings: Hashable, Sendable, Codable {
 
 extension AppSettings {
     enum CodingKeys: String, CodingKey {
-        case isEnabled, blurMode, awayPolicy, failMode, acceptanceCone
-        case awayGrace, reanchorHotkey, launchAtLogin, blurRadius
+        case isEnabled, resumeAt, blurMode, awayPolicy, failMode, acceptanceCone
+        case awayGrace, reanchorHotkey, launchAtLogin, blurRadius, lockTested, launchAtLoginOffered
     }
 
     /// Decodes field by field so that adding a setting does not invalidate a user's stored
@@ -131,6 +147,7 @@ extension AppSettings {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let fallback = AppSettings()
         isEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? fallback.isEnabled
+        resumeAt = try container.decodeIfPresent(Date.self, forKey: .resumeAt)
         blurMode = try container.decodeIfPresent(BlurMode.self, forKey: .blurMode) ?? fallback.blurMode
         awayPolicy = try container.decodeIfPresent(AwayPolicy.self, forKey: .awayPolicy) ?? fallback.awayPolicy
         failMode = try container.decodeIfPresent(FailMode.self, forKey: .failMode) ?? fallback.failMode
@@ -139,6 +156,8 @@ extension AppSettings {
         reanchorHotkey = try container.decodeIfPresent(Hotkey.self, forKey: .reanchorHotkey) ?? fallback.reanchorHotkey
         launchAtLogin = try container.decodeIfPresent(Bool.self, forKey: .launchAtLogin) ?? fallback.launchAtLogin
         blurRadius = try container.decodeIfPresent(Double.self, forKey: .blurRadius) ?? fallback.blurRadius
+        lockTested = try container.decodeIfPresent(Bool.self, forKey: .lockTested) ?? fallback.lockTested
+        launchAtLoginOffered = try container.decodeIfPresent(Bool.self, forKey: .launchAtLoginOffered) ?? fallback.launchAtLoginOffered
     }
 }
 

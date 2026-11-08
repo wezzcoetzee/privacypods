@@ -50,6 +50,10 @@ final class SettingsStore {
         do {
             if settings.launchAtLogin {
                 try SMAppService.mainApp.register()
+                // macOS can hold a new login item for approval; send the user to where they give it.
+                if SMAppService.mainApp.status == .requiresApproval {
+                    SMAppService.openSystemSettingsLoginItems()
+                }
             } else {
                 try SMAppService.mainApp.unregister()
             }

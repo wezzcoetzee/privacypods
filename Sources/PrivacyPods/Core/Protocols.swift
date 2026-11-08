@@ -91,7 +91,9 @@ protocol OverlayControlling: AnyObject {
 
     /// Blurs exactly `displays`; anything currently blurred and not listed fades out. Idempotent,
     /// so the engine can call it on every state change without tracking what is already shown.
-    func setBlurred(_ displays: Set<DisplayID>, radius: Double)
+    /// `notices` holds the line each covered display explains itself with, if any, so a display
+    /// only ever says something true about itself. A capture problem's own notice is shown with it.
+    func setBlurred(_ displays: Set<DisplayID>, radius: Double, notices: [DisplayID: String])
     /// Tears down every window and stops capture. Called on quit and whenever the app is disabled.
     func teardown()
 }
@@ -131,13 +133,13 @@ protocol ScreenLocking: AnyObject {
 
 // MARK: - Permissions
 
-/// Reports and requests the app's TCC permissions for the calibration view.
+/// Reports and requests the app's TCC permissions for the Status window.
 @MainActor
 protocol PermissionAuditing: AnyObject {
     func status(of permission: Permission) -> PermissionStatus
     /// Prompts in-process where the API allows it, otherwise opens `permission.settingsURL`.
     func request(_ permission: Permission)
-    /// Re-reads every status. Called when the calibration view appears and when the app
+    /// Re-reads every status. Called when the Status window appears and when the app
     /// returns to the foreground, because TCC gives no change notifications.
     func refresh()
 }

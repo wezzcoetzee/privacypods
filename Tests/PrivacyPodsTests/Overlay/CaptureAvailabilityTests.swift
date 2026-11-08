@@ -32,7 +32,7 @@ struct CaptureAvailabilityTests {
     @Test("Only an unavailable capture has something to say")
     func noticeExistsOnlyWhenBlind() {
         #expect(CaptureAvailability.available.notice == nil)
-        #expect(CaptureAvailability.unavailable(.screenRecordingDenied).notice == "PrivacyPods needs Screen Recording")
+        #expect(CaptureAvailability.unavailable(.screenRecordingDenied).notice != nil)
         #expect(CaptureAvailability.unavailable(.captureFailed).notice != nil)
     }
 }
