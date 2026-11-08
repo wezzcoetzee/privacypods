@@ -4,9 +4,14 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+build_settings=()
+if [[ -n "${1:-}" ]]; then
+  build_settings+=("MARKETING_VERSION=$1")
+fi
+
 xcodegen generate >/dev/null
 xcodebuild -project PrivacyPods.xcodeproj -scheme PrivacyPods -configuration Release -derivedDataPath build/DerivedData \
-  CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= build | grep -E "error|BUILD"
+  CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= "${build_settings[@]}" build | grep -E "error|BUILD"
 
 APP=build/DerivedData/Build/Products/Release/PrivacyPods.app
 VERSION=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" "$APP/Contents/Info.plist")

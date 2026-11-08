@@ -178,6 +178,11 @@ For an installable build:
 
 The DMG is ad-hoc signed. TCC grants survive rebuilds because the bundle id does not change.
 
+Pushing a `v*` tag runs the [shared macOS release workflow](https://github.com/wezzcoetzee/.github/blob/main/.github/workflows/macos-release.yml)
+on `macos-26`, installs XcodeGen, and publishes the DMG to a GitHub Release with generated notes.
+The tag without its leading `v` sets the app and DMG version. To build that version locally,
+run `./scripts/build-dmg.sh 0.1.0`; without an argument, the script uses `project.yml`.
+
 The app icon is generated, not drawn by hand. `scripts/icon/render.swift` composes it from SF Symbols and
 `scripts/icon/make-icns.sh` writes `Supporting/AppIcon.icns`, which is checked in.
 
