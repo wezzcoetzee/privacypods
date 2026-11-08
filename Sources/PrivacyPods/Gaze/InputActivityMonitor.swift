@@ -52,7 +52,7 @@ final class InputActivityMonitor: InputActivityProviding {
     }
 
     /// A global monitor sees other apps; a local one sees PrivacyPods' own windows. Both are
-    /// needed, or typing in the calibration or settings window would neither anchor nor count
+    /// needed, or typing in the setup or settings window would neither anchor nor count
     /// as activity. They never see the same event, so a burst cannot be double-counted.
     ///
     /// Pointer events arrive without Input Monitoring; keyboard ones do not. Install regardless

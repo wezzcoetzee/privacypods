@@ -17,7 +17,7 @@ needed by one, it stays there.
 | `Gaze` | Anchor table, nearest-anchor classifier, grace window, `NSEvent` monitors, Carbon re-anchor hotkey | `GazeClassifying`, `InputActivityProviding` |
 | `Overlay` | One window per display, `SCStream` capture, `CIGaussianBlur`, the dark scrim over it | `OverlayControlling` |
 | `Presence` | Gait detection, Bluetooth proximity, away evidence rules, screen lock | `PresenceProviding`, `ScreenLocking` |
-| `App` | Entry point, engine wiring, menu bar, settings window, calibration window, settings store | `PermissionAuditing` |
+| `App` | Entry point, engine wiring, menu bar, settings window, Status window, settings store | `PermissionAuditing` |
 
 Modules never reference each other. `App` builds every provider, subscribes to every stream,
 and pushes the results into whoever needs them. If you find yourself wanting another module's
@@ -90,7 +90,7 @@ sample callbacks, `system_profiler`), it hops back to the main actor before emit
 - **`CaptureAvailability`**: `.available`, or `.unavailable(.screenRecordingDenied)` /
   `.unavailable(.captureFailed)`. Whether the overlay is blurring a live picture of a display or
   covering it blind; `notice` is the one line printed on the cover, and `nil` while it can blur.
-  Either way the display stays covered — the failure changes what the user is told, never
+  Either way the display stays covered: the failure changes what the user is told, never
   whether the screen is hidden.
 
 ### Settings.swift
@@ -117,8 +117,8 @@ sample callbacks, `system_profiler`), it hops back to the main actor before emit
 
 ### Permissions.swift
 
-- **`Permission`**: `.motion`, `.screenRecording`, `.inputMonitoring`, each with a `title`, a
-  `rationale` for the calibration view, and a `settingsURL` pointing at the right
+- **`Permission`**: `.motion`, `.screenRecording`, `.inputMonitoring`, `.bluetooth`, each with a `title`, a
+  `rationale` for the Status window, and a `settingsURL` pointing at the right
   System Settings pane.
 - **`PermissionStatus`**: `.granted`, `.denied`, `.notDetermined`, `.unavailable`.
 
@@ -145,7 +145,7 @@ All are `@MainActor` and `AnyObject`.
 | `HeadTrackingProviding` | HeadTracking | `events: AsyncStream<HeadTrackingEvent>`, `wearState`, `start()`, `stop()` |
 | `InputActivityProviding` | Gaze | `events: AsyncStream<InputActivity>`, `start()`, `stop()` |
 | `GazeClassifying` | Gaze | `state`, `events: AsyncStream<GazeState>`, `anchors`, `ingest(_:)`, `anchor(_:source:)`, `retainOnly(_:)`, `update(cone:awayGrace:)` |
-| `OverlayControlling` | Overlay | `captureAvailability`, `captureEvents: AsyncStream<CaptureAvailability>`, `setBlurred(_:radius:)`, `teardown()` |
+| `OverlayControlling` | Overlay | `captureAvailability`, `captureEvents: AsyncStream<CaptureAvailability>`, `setBlurred(_:radius:notices:)`, `teardown()` |
 | `PresenceProviding` | Presence | `state`, `events: AsyncStream<PresenceState>`, `ingest(_:)` x3, `start()`, `stop()` |
 | `ScreenLocking` | Presence | `isLocked`, `events: AsyncStream<Bool>`, `lock() -> Bool` |
 | `PermissionAuditing` | App | `status(of:)`, `request(_:)`, `refresh()` |
@@ -173,10 +173,10 @@ Notes the signatures do not carry:
 - `ScreenLocking.lock()` returns whether anything took effect. `SACLockScreenImmediate` can fail
   and the display-sleep fallback only locks when the password delay is immediate, so a caller
   that ignores the result can believe it locked a Mac that is still showing the user's screen.
-- `OverlayControlling.setBlurred(_:radius:)` is idempotent and absolute, not a delta. Pass the
+- `OverlayControlling.setBlurred(_:radius:notices:)` is idempotent and absolute, not a delta. Pass the
   full set every time; anything blurred and not in the set fades out.
 - `PermissionAuditing.refresh()` exists because TCC sends no change notifications. Call it when
-  the calibration view appears and when the app returns to the foreground.
+  the Status window appears and when the app returns to the foreground.
 
 ## Ground truth from the spike
 

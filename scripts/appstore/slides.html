@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PrivacyPods App Store slides</title>
+<!--
+  The Mac App Store screenshots, one slide per #hash, laid out at 1440x900 and rendered at 2x
+  (2880x1800) by render.sh. ui/ holds real renders from scripts/snapshots.sh; the documents
+  behind the blur are made up, so no real screen content ends up in a store listing.
+-->
+<style>
+:root {
+  --bg: #000;
+  --fg: #fff;
+  --soft: rgba(255, 255, 255, 0.72);
+  --bar: rgba(30, 30, 32, 0.92);
+  --bezel: #2a2a2d;
+  --paper: #f4f4f2;
+  --ink: #1b1d22;
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; width: 1440px; height: 900px; overflow: hidden; background: var(--bg); color: var(--fg); font-family: var(--sans); }
+.slide { display: none; position: relative; width: 1440px; height: 900px; padding: 0 96px; align-items: center; gap: 72px; }
+.slide:target { display: flex; }
+.slide.stacked { flex-direction: column; justify-content: center; align-items: flex-start; gap: 44px; }
+.slide.stacked .copy h1 { font-size: 56px; }
+.slide.stacked .visual { flex: 0 0 auto; width: 100%; }
+.slide.stacked::before { background: radial-gradient(ellipse 760px 380px at 50% 70%, rgba(255, 255, 255, 0.10), transparent 70%); }
+.slide::before {
+  /* The icon's glow: one soft light behind the product, nothing else decorative. */
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse 620px 420px at 72% 50%, rgba(255, 255, 255, 0.10), transparent 70%);
+}
+.copy { position: relative; flex: 0 0 470px; display: flex; flex-direction: column; gap: 22px; }
+.brand { display: flex; align-items: center; gap: 14px; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+.brand img { width: 52px; height: 52px; border-radius: 12px; }
+h1 { margin: 0; font-size: 64px; line-height: 1.04; font-weight: 700; letter-spacing: -0.03em; }
+.copy p { margin: 0; font-size: 24px; line-height: 1.38; color: var(--soft); font-weight: 400; }
+.visual { position: relative; flex: 1; display: flex; align-items: center; justify-content: center; }
+
+/* A Mac display: bezel, a dark menu bar that is never blurred, and a desktop. */
+.screen { position: relative; width: 760px; aspect-ratio: 16 / 10; border: 10px solid var(--bezel); border-radius: 22px; overflow: hidden;
+  background: radial-gradient(circle at 20% 15%, #3b5bdb 0, transparent 45%), radial-gradient(circle at 85% 80%, #9c36b5 0, transparent 50%), #1b1e2a;
+  box-shadow: 0 40px 120px rgba(0, 0, 0, 0.7); }
+.screen.small { width: 580px; }
+.menubar { position: absolute; z-index: 3; inset: 0 0 auto; height: 26px; background: var(--bar); display: flex; align-items: center;
+  padding: 0 12px; gap: 16px; font-size: 12.5px; font-weight: 500; }
+.menubar .app { font-weight: 700; }
+.menubar .right { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+.menubar img { height: 14px; }
+.menubar .ours { height: 15px; padding: 3px 6px; border-radius: 5px; }
+.menubar .ours.active { background: rgba(255, 255, 255, 0.22); height: 21px; }
+.desk { position: absolute; inset: 26px 0 0; display: flex; align-items: center; justify-content: center; }
+
+/* The made-up document behind the blur. */
+.doc { width: 82%; height: 82%; background: var(--paper); color: var(--ink); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45); font-size: 11px; }
+.doc .bar { height: 26px; background: #e4e4e1; display: flex; align-items: center; gap: 6px; padding: 0 10px; font-size: 11px; font-weight: 600; color: #444; }
+.doc .bar i { width: 10px; height: 10px; border-radius: 50%; background: #ff5f57; display: inline-block; }
+.doc .bar i:nth-child(2) { background: #febc2e; } .doc .bar i:nth-child(3) { background: #28c840; margin-right: 10px; }
+.doc .body { padding: 18px 22px; display: flex; flex-direction: column; gap: 10px; }
+.doc h2 { margin: 0; font-size: 18px; }
+.doc .meta { color: #666; }
+.doc table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+.doc td, .doc th { text-align: left; padding: 5px 6px; border-bottom: 1px solid #ddd; }
+.doc th { color: #666; font-weight: 600; }
+.doc .num { text-align: right; }
+.doc .callout { background: #fff3c4; padding: 8px 10px; border-radius: 6px; }
+.doc .split { display: flex; gap: 16px; align-items: flex-end; }
+.doc .chart { display: flex; gap: 6px; align-items: flex-end; height: 70px; padding: 6px 8px; background: #fff; border-radius: 6px; flex: 0 0 170px; }
+.doc .chart b { flex: 1; border-radius: 3px 3px 0 0; background: #4c6ef5; }
+.doc .chart b:nth-child(2n) { background: #f59f00; }
+.doc .chart b:nth-child(3n) { background: #12b886; }
+.doc .avatar { display: inline-block; width: 16px; height: 16px; border-radius: 50%; vertical-align: -4px; margin-right: 6px; background: #e64980; }
+.doc tr:nth-child(3) .avatar { background: #15aabf; } .doc tr:nth-child(4) .avatar { background: #fab005; }
+.doc tr:nth-child(5) .avatar { background: #7950f2; } .doc tr:nth-child(6) .avatar { background: #40c057; }
+
+/* The hero splits one screen down the middle, sharp then covered, the way the icon does. */
+.split-screen .covered-half { position: absolute; inset: 0; -webkit-mask-image: linear-gradient(90deg, transparent 47%, #000 53%); }
+.split-screen .covered-half .desk > .doc { filter: blur(16px); }
+.split-screen .covered-half .desk::after { content: ""; position: absolute; inset: 0; background: rgba(15, 15, 15, 0.38); }
+
+/* What PrivacyPods draws: the same Gaussian blur and dark scrim as the real overlay. */
+.covered .desk > .doc { filter: blur(16px); }
+.covered .desk::after { content: ""; position: absolute; inset: 0; background: rgba(15, 15, 15, 0.38); }
+.notice { position: absolute; z-index: 2; inset: 26px 0 0; display: flex; align-items: center; justify-content: center; padding: 0 12%;
+  text-align: center; font-size: 15px; font-weight: 600; line-height: 1.4; text-shadow: 0 0 8px rgba(0, 0, 0, 0.8); }
+
+.label { margin-top: 16px; text-align: center; font-size: 17px; font-weight: 600; }
+.pair { display: flex; gap: 28px; align-items: flex-start; }
+.pair > div { display: flex; flex-direction: column; align-items: center; }
+
+/* Real windows from the snapshot harness. */
+.window { border-radius: 14px; box-shadow: 0 40px 120px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.08); }
+
+/* The menu slide: a strip of menu bar with the real menu hanging from the icon. */
+.strip { position: relative; width: 720px; }
+.strip .menubar { position: relative; border-radius: 10px 10px 0 0; height: 30px; }
+.strip .menu { position: absolute; top: 36px; right: 80px; width: 245px; /* native size: the render is 2x */ border-radius: 12px; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.7); }
+.legend { display: grid; grid-template-columns: 34px 1fr; gap: 14px 14px; align-items: center; font-size: 19px; margin-top: 6px; }
+.legend img { height: 24px; justify-self: center; }
+.legend .dim { opacity: 0.4; }
+</style>
+</head>
+<body>
+
+<!-- 1. The promise. -->
+<section class="slide" id="hero">
+  <div class="copy">
+    <div class="brand"><img src="assets/icon.png" alt="">PrivacyPods</div>
+    <h1>Look away.<br>Your screen blurs.</h1>
+    <p>Your AirPods already know where your head is pointing. PrivacyPods blurs your Mac the moment you turn away, and clears it the moment you look back.</p>
+  </div>
+  <div class="visual">
+    <div class="screen split-screen">
+      <div class="menubar"><span class="app">Ledger</span><span>File</span><span>Edit</span><span>View</span><span>Window</span>
+        <span class="right"><img class="ours" src="assets/eye.png" alt=""><img src="assets/wifi.png" alt=""><img src="assets/battery.75percent.png" alt=""><span>Tue 9:41</span></span></div>
+      <div class="desk"><div class="doc" data-doc></div></div>
+      <div class="covered-half"><div class="desk"><div class="doc" data-doc></div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 2. Multiple displays. -->
+<section class="slide stacked" id="displays">
+  <div class="copy" style="flex-basis: auto; width: 1100px">
+    <h1>Only the screen you're looking at stays readable.</h1>
+    <p>Look from one display to the other and the blur follows you. It anchors each display as you work.</p>
+  </div>
+  <div class="visual">
+    <div class="pair">
+      <div>
+        <div class="screen small">
+          <div class="menubar"><span class="app">Ledger</span><span>File</span><span>Edit</span>
+            <span class="right"><img class="ours" src="assets/eye.png" alt=""><span>Tue 9:41</span></span></div>
+          <div class="desk"><div class="doc" data-doc></div></div>
+        </div>
+        <div class="label">Looking here</div>
+      </div>
+      <div>
+        <div class="screen small covered">
+          <div class="menubar"><span class="app">Mail</span><span>File</span><span>Edit</span>
+            <span class="right"><img class="ours" src="assets/eye.png" alt=""><span>Tue 9:41</span></span></div>
+          <div class="desk"><div class="doc" data-doc="mail"></div></div>
+        </div>
+        <div class="label">Blurred</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 3. Walking away. -->
+<section class="slide" id="lock">
+  <div class="copy">
+    <h1>Walk away, and it locks.</h1>
+    <p>Blur after 5 seconds and lock after 30, or lock straight away. Every lock is checked, and a lock that fails is never hidden from you.</p>
+  </div>
+  <div class="visual"><img class="window" src="ui/settings-tracking.png" alt="" style="width: 500px"></div>
+</section>
+
+<!-- 4. The menu bar. -->
+<section class="slide" id="menu">
+  <div class="copy">
+    <h1>Always know what it's doing.</h1>
+    <p>One eye in the menu bar tells you at a glance.</p>
+    <div class="legend">
+      <img src="assets/eye.png" alt=""><span>Protecting</span>
+      <img src="assets/eye.slash.png" alt=""><span>Your screen is blurred</span>
+      <img src="assets/eye.half.closed.png" alt=""><span>Can't see you yet</span>
+      <img class="dim" src="assets/pause.circle.png" alt=""><span>Paused, by you</span>
+      <img src="assets/eye.trianglebadge.exclamationmark.png" alt=""><span>Needs your attention</span>
+    </div>
+  </div>
+  <div class="visual" style="align-self: flex-start; padding-top: 150px">
+    <div class="strip">
+      <div class="menubar"><span class="app">Ledger</span><span>File</span><span>Edit</span><span>View</span>
+        <span class="right"><img class="ours active" src="assets/eye.png" alt=""><img src="assets/wifi.png" alt=""><img src="assets/battery.75percent.png" alt=""><span>Tue 9:41</span></span></div>
+      <img class="menu" src="ui/menu-tracking.png" alt="">
+    </div>
+  </div>
+</section>
+
+<!-- 5. First run. -->
+<section class="slide" id="setup">
+  <div class="copy">
+    <h1>Set up in a minute.</h1>
+    <p>On first launch PrivacyPods tells you the one thing to do next, and asks only for what gets head tracking going.</p>
+  </div>
+  <div class="visual"><img class="window" src="ui/status-first-run.png" alt="" style="width: 640px"></div>
+</section>
+
+<!-- 6. Seeing what it sees. -->
+<section class="slide" id="status">
+  <div class="copy">
+    <h1>See exactly what it sees.</h1>
+    <p>Which display you're looking at, whether you're at the Mac, and whether the screen lock works. Every problem comes with its fix.</p>
+  </div>
+  <div class="visual"><img class="window" src="ui/status-tracking.png" alt="" style="width: 600px"></div>
+</section>
+
+<!-- 7. The safety line. -->
+<section class="slide" id="honest">
+  <div class="copy">
+    <h1>It never guesses that you left.</h1>
+    <p>If your AirPods go quiet, PrivacyPods says so and keeps your screen as you chose. Missing data never locks your Mac.</p>
+  </div>
+  <div class="visual">
+    <div class="screen covered">
+      <div class="menubar"><span class="app">Ledger</span><span>File</span><span>Edit</span><span>View</span>
+        <span class="right"><img class="ours" src="assets/eye.half.closed.png" alt=""><img src="assets/wifi.png" alt=""><span>Tue 9:41</span></span></div>
+      <div class="desk"><div class="doc" data-doc></div></div>
+      <div class="notice">No head data from AirPods. Put them back in, or choose Pause in the PrivacyPods menu.</div>
+    </div>
+  </div>
+</section>
+
+<template id="ledger">
+  <div class="bar"><i></i><i></i><i></i>Q3 Compensation Review (Confidential)</div>
+  <div class="body">
+    <h2>Q3 Compensation Review</h2>
+    <div class="meta">Prepared for the leadership team. Do not forward.</div>
+    <div class="split">
+      <div class="callout" style="flex: 1">Proposed pool: 4.2% of payroll, effective 1 October. Two promotions pending sign-off.</div>
+      <div class="chart"><b style="height: 40%"></b><b style="height: 62%"></b><b style="height: 55%"></b><b style="height: 80%"></b><b style="height: 70%"></b><b style="height: 95%"></b></div>
+    </div>
+    <table>
+      <tr><th>Name</th><th>Role</th><th class="num">Current</th><th class="num">Proposed</th></tr>
+      <tr><td><i class="avatar"></i>Avery Lin</td><td>Staff Engineer</td><td class="num">$212,000</td><td class="num">$226,000</td></tr>
+      <tr><td><i class="avatar"></i>Jordan Pike</td><td>Design Lead</td><td class="num">$184,500</td><td class="num">$193,000</td></tr>
+      <tr><td><i class="avatar"></i>Sam Okafor</td><td>Product Manager</td><td class="num">$171,000</td><td class="num">$180,500</td></tr>
+      <tr><td><i class="avatar"></i>Riley Chen</td><td>Engineer II</td><td class="num">$142,000</td><td class="num">$151,000</td></tr>
+      <tr><td><i class="avatar"></i>Morgan Ruiz</td><td>Support Lead</td><td class="num">$98,000</td><td class="num">$104,500</td></tr>
+    </table>
+  </div>
+</template>
+<template id="mail">
+  <div class="bar"><i></i><i></i><i></i>Inbox</div>
+  <div class="body">
+    <h2>Re: Offer for the Lisbon role</h2>
+    <div class="meta">From Dana Whitfield to you, 9:12</div>
+    <div>Thanks for the call this morning. As discussed, we can move the base to $165,000 with a signing bonus of $20,000, and start on 3 November.</div>
+    <div>Please keep this between us until the team announcement on Friday.</div>
+    <div class="callout">Attachment: offer-letter-final.pdf</div>
+  </div>
+</template>
+<script>
+  for (const doc of document.querySelectorAll("[data-doc]")) {
+    doc.append(document.getElementById(doc.dataset.doc || "ledger").content.cloneNode(true));
+  }
+</script>
+</body>
+</html>

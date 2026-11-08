@@ -34,7 +34,8 @@ final class DisplaySurface {
         )
     }
 
-    func show(radius: Double) {
+    func show(radius: Double, notice: String?) {
+        window.show(reason: notice)
         capture.start(radius: radius)
         fadeGeneration += 1
         if !isShown {
@@ -77,7 +78,8 @@ final class DisplaySurface {
         // AppKit runs the completion on the main thread but types it as non-isolated.
         let onFinish: @Sendable () -> Void = { MainActor.assumeIsolated { completion() } }
         NSAnimationContext.runAnimationGroup({ context in
-            context.duration = Self.fadeDuration
+            // A whole display changing opacity is the motion Reduce Motion exists for.
+            context.duration = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : Self.fadeDuration
             context.timingFunction = CAMediaTimingFunction(name: .easeOut)
             self.window.animator().alphaValue = alpha
         }, completionHandler: onFinish)

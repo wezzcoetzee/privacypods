@@ -62,7 +62,7 @@ enum AwayResponse: Int, Hashable, Sendable, Comparable, CaseIterable {
 /// Whether the overlay is showing a blurred picture of a display, or covering it blind.
 ///
 /// The two failures are worth telling apart in the one line the overlay prints: a missing
-/// permission is something the user can fix, a dead stream is not. Neither uncovers the screen.
+/// permission is fixed in System Settings, a dead stream by retrying it. Neither uncovers the screen.
 enum CaptureAvailability: Hashable, Sendable {
     case available
     case unavailable(Reason)
@@ -76,8 +76,8 @@ enum CaptureAvailability: Hashable, Sendable {
     var notice: String? {
         switch self {
         case .available: nil
-        case .unavailable(.screenRecordingDenied): "PrivacyPods needs Screen Recording"
-        case .unavailable(.captureFailed): "PrivacyPods cannot capture this display"
+        case .unavailable(.screenRecordingDenied): "This display is dark because Screen Recording is off. To blur it instead, choose Allow Screen Recording… in the PrivacyPods menu."
+        case .unavailable(.captureFailed): "PrivacyPods cannot capture this display, so it stays covered. To try again, choose Retry Display Capture in the PrivacyPods menu."
         }
     }
 }

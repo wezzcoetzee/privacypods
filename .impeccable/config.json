@@ -1,0 +1,26 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "radial-halo",
+        "value": "*",
+        "files": [
+          "scripts/appstore/slides.html"
+        ],
+        "createdAt": "2026-11-07T23:43:07.697Z",
+        "reason": "Claude triage: the chromatic radial gradients are the mock macOS desktop wallpaper inside the fake screen (content being blurred), not a decorative page glow"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "scripts/appstore/slides.html"
+        ],
+        "createdAt": "2026-11-07T23:43:07.761Z",
+        "reason": "Claude triage: flagged boxes are mock macOS chrome (menu bar item highlight, window title bar, document callout) drawn at native menu-bar proportions so the fake screen reads as a real Mac"
+      }
+    ]
+  }
+}

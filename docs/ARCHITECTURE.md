@@ -30,7 +30,7 @@ flowchart TB
 
     EN["App.AppCoordinator<br/>@MainActor"]
     ST["App.SettingsStore<br/>@Observable"]
-    UI["App.MenuBar + Settings + Calibration"]
+    UI["App.MenuBar + Settings + Status"]
 
     HT -- "HeadTrackingEvent" --> EN
     IN -- "InputActivity, hotkey press" --> EN
@@ -67,7 +67,7 @@ the first burst of typing after the user returns re-anchors it.
 | `Sources/PrivacyPods/Gaze` | 2 | Anchors, classification, grace window, input monitoring, re-anchor hotkey |
 | `Sources/PrivacyPods/Overlay` | 3 | Per-display blur windows, screen capture, blur pipeline, dark scrim |
 | `Sources/PrivacyPods/Presence` | 4 | Gait detection, proximity, away evidence, screen lock |
-| `Sources/PrivacyPods/App` | 5 | Entry point, engine, menu bar, settings, calibration, permissions |
+| `Sources/PrivacyPods/App` | 5 | Entry point, engine, menu bar, settings, Status window, permissions |
 | `README.md`, `docs/` | 6 | User-facing documentation |
 
 `Sources/PrivacyPods/Core/README.md` is the contract. Read it before writing anything.
@@ -128,9 +128,12 @@ neither survives the app being disabled or the screen locking. The coordinator l
 the password delay is immediate), watches `com.apple.screenIsLocked` /
 `com.apple.screenIsUnlocked`, and never blurs while locked.
 
-`lock()` reports whether it took effect, and a lock that did not becomes the menu bar's status
-line ("Could not lock the screen") until the user returns or the screen does lock. The displays
-stay blurred either way, so a failed lock costs the user a warning rather than their screen.
+`lock()` reports whether it took effect, and the coordinator also waits three seconds for the lock
+notification, because the display-sleep fallback reports success without locking. A lock that did
+not take becomes the menu bar's status line ("Could not lock the screen") while the user is away,
+and then a sticky `lockFailedAt` issue that survives their return, until a lock works or they
+dismiss it in the Status window. The displays stay blurred either way, so a failed lock costs the
+user a warning rather than their screen.
 
 ## Permissions
 
@@ -145,11 +148,11 @@ to the terminal that started it. See `spike/README.md` and `docs/PERMISSIONS.md`
 
 Motion has no request call of its own: the prompt fires on the first subscription to the motion
 stream, so asking means running a short-lived probe. That probe is a sensor start, which means
-it belongs to the run gate, so the calibration window asks through `AppCoordinator.request(_:)`
-and hides the button while tracking is already running — at which point the status is known
-anyway. Input Monitoring being denied leaves the re-anchor hotkey as the only way to anchor, so
+it belongs to the run gate, so the Status window asks through `AppCoordinator.request(_:)`
+and hides the button while tracking is already running: at which point the status is known
+anyway. Input Monitoring being denied leaves the pointer and the re-anchor shortcut as the ways to anchor, so
 a hotkey the app could not register (usually because another app holds it) is reported in both
-the calibration and the settings window rather than failing silently.
+the Status and the Settings window rather than failing silently.
 
 ## Build
 
@@ -167,7 +170,7 @@ Swift 6 language mode with complete strict concurrency is on for both targets.
 
 Swift Testing (`import Testing`), pure logic only: the gaze classifier, the presence policy
 state machine, the gait detector on synthetic samples, and the coordinator's blur and status
-gates (`AppCoordinator.blurredDisplays` and `statusLine`, both `nonisolated static` and pure).
+gates (`AppCoordinator.blurredDisplays`, `AppCoordinator.overlayNotice` and `AppStatus.current`, all pure).
 No smoke tests, no tests of AppKit plumbing. Pure state machines take `now: Date` as a
 parameter so they need no clock;
 `Tests/PrivacyPodsTests/Support/ManualTimeSource.swift` covers the stateful drivers that do.

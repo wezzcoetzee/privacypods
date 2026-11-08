@@ -1,17 +1,21 @@
 import AppKit
 import SwiftUI
 
-/// Opens the Settings and Calibration windows on demand and keeps at most one of each around.
-/// The app has no dock icon and no main menu, so these are the only windows it ever shows.
+/// Opens the Settings and Status windows on demand and keeps at most one of each around.
+/// The app has no dock icon and only a hidden main menu, so these are the only windows it shows.
 ///
-/// A closed window is dropped rather than hidden. The calibration view polls TCC for as long as
-/// it is alive, and a cached window keeps its hosting view — and therefore that poll — running
-/// forever behind a window nobody can see.
+/// Both windows size themselves to their content and cannot be resized or minimized, the way
+/// macOS settings windows behave. In an accessory app a minimized window would land in the Dock
+/// with no app icon beside it, which is an easy way to lose it.
+///
+/// A closed window is dropped rather than hidden. The Status view polls TCC for as long as it is
+/// alive, and a cached window would keep its hosting view, and so that poll, running forever
+/// behind a window nobody can see.
 @MainActor
 final class WindowController: NSObject, NSWindowDelegate {
     private enum Kind: Hashable {
         case settings
-        case calibration
+        case status
     }
 
     private let coordinator: AppCoordinator
@@ -19,17 +23,35 @@ final class WindowController: NSObject, NSWindowDelegate {
 
     init(coordinator: AppCoordinator) {
         self.coordinator = coordinator
+        super.init()
+        followCoverage()
+    }
+
+    /// While any display is covered, the app's own windows sit just above the sheet, so the
+    /// "Allow…" or "Change Re-anchor Shortcut…" a covered display points at is never hidden by it. The rest
+    /// of the time they are ordinary windows.
+    private func followCoverage() {
+        withObservationTracking {
+            applyLevel()
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.followCoverage() }
+        }
+    }
+
+    private func applyLevel() {
+        let level = coordinator.isCovering ? NSWindow.Level(rawValue: BlurOverlayWindow.level.rawValue + 1) : .normal
+        windows.values.forEach { $0.level = level }
     }
 
     func showSettings() {
-        show(.settings, title: "PrivacyPods Settings", size: NSSize(width: 480, height: 420)) {
+        show(.settings, title: "PrivacyPods Settings") {
             SettingsView(coordinator: coordinator, settings: coordinator.settings)
         }
     }
 
-    func showCalibration() {
-        show(.calibration, title: "PrivacyPods Calibration", size: NSSize(width: 520, height: 560)) {
-            CalibrationView(coordinator: coordinator)
+    func showStatus() {
+        show(.status, title: "PrivacyPods Status") {
+            StatusView(coordinator: coordinator) { [weak self] in self?.showSettings() }
         }
     }
 
@@ -38,24 +60,27 @@ final class WindowController: NSObject, NSWindowDelegate {
         windows = windows.filter { $0.value !== closing }
     }
 
-    private func show(_ kind: Kind, title: String, size: NSSize, content: () -> some View) {
-        let window = windows[kind] ?? makeWindow(title: title, size: size, content: content())
+    private func show(_ kind: Kind, title: String, content: () -> some View) {
+        let window = windows[kind] ?? makeWindow(title: title, content: content())
         windows[kind] = window
+        applyLevel()
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
     }
 
-    private func makeWindow(title: String, size: NSSize, content: some View) -> NSWindow {
-        let window = NSWindow(
-            contentRect: NSRect(origin: .zero, size: size),
-            styleMask: [.titled, .closable, .miniaturizable],
-            backing: .buffered,
-            defer: false
-        )
+    private func makeWindow(title: String, content: some View) -> NSWindow {
+        let host = NSHostingController(rootView: content)
+        // The window follows the content, including when a notice row appears or goes.
+        host.sizingOptions = .preferredContentSize
+        let window = NSWindow(contentViewController: host)
+        window.styleMask = [.titled, .closable]
         window.title = title
+        // The title bar joins the black content instead of sitting on it as a gray strip.
+        window.appearance = NSAppearance(named: .darkAqua)
+        window.backgroundColor = .black
+        window.titlebarAppearsTransparent = true
         window.isReleasedWhenClosed = false
         window.delegate = self
-        window.contentView = NSHostingView(rootView: content)
         window.center()
         return window
     }

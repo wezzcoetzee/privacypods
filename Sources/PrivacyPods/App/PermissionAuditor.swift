@@ -1,4 +1,5 @@
 import AppKit
+import CoreBluetooth
 import IOKit.hid
 
 /// The `PermissionAuditing` implementation, and the only place the app reports on permissions.
@@ -16,6 +17,8 @@ final class PermissionAuditor: PermissionAuditing {
     /// we have asked, a continued `false` means denied rather than not-yet-determined.
     private var hasRequestedScreenRecording: Bool
     private var cachedStatuses: [Permission: PermissionStatus] = [:]
+    /// Held only so the Bluetooth prompt stays up until it is answered.
+    private var bluetoothProbe: CBCentralManager?
 
     init(motion: HeadphoneMotionTracker) {
         self.motion = motion
@@ -43,14 +46,25 @@ final class PermissionAuditor: PermissionAuditing {
             case .denied, .unavailable:
                 NSWorkspace.shared.open(permission.settingsURL)
             }
+        // Both requests return `false` on the first call while their prompt is still on screen,
+        // so System Settings only opens once the user has already been asked and said no.
         case .screenRecording:
+            let wasAsked = hasRequestedScreenRecording
             hasRequestedScreenRecording = true
             UserDefaults.standard.set(true, forKey: Self.screenRecordingRequestedKey)
-            if !ScreenRecordingPermission.request() {
+            if !ScreenRecordingPermission.request(), wasAsked {
                 NSWorkspace.shared.open(permission.settingsURL)
             }
         case .inputMonitoring:
-            if !IOHIDRequestAccess(kIOHIDRequestTypeListenEvent) {
+            let wasDenied = status(of: .inputMonitoring) == .denied
+            if !IOHIDRequestAccess(kIOHIDRequestTypeListenEvent), wasDenied {
+                NSWorkspace.shared.open(permission.settingsURL)
+            }
+        case .bluetooth:
+            // Bluetooth has no request call either: creating a manager raises the prompt once.
+            if status(of: .bluetooth) == .notDetermined {
+                bluetoothProbe = CBCentralManager()
+            } else {
                 NSWorkspace.shared.open(permission.settingsURL)
             }
         }
@@ -90,6 +104,13 @@ final class PermissionAuditor: PermissionAuditing {
             case kIOHIDAccessTypeGranted: .granted
             case kIOHIDAccessTypeDenied: .denied
             default: .notDetermined
+            }
+        case .bluetooth:
+            switch CBManager.authorization {
+            case .allowedAlways: .granted
+            case .denied, .restricted: .denied
+            case .notDetermined: .notDetermined
+            @unknown default: .unavailable
             }
         }
     }

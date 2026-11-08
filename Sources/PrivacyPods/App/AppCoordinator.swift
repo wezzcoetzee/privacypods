@@ -30,21 +30,25 @@ final class AppCoordinator {
     private(set) var presenceState: PresenceState = .unknown
     private(set) var isLocked: Bool = false
     private(set) var displays: [DisplayInfo] = []
-    /// The pose the calibration window reads. Samples arrive at ~50 Hz, which is both faster
+    /// The pose the Status window reads to say whether each display is in range. Samples arrive at ~50 Hz, which is both faster
     /// than anyone can read and fast enough to invalidate a SwiftUI form at the refresh rate,
     /// so it is republished at `displayPoseInterval` and cleared whenever the head data stops.
     private(set) var displayPose: HeadPose?
     /// `false` when the re-anchor combination could not be registered, usually because another
     /// app already holds it. With Input Monitoring denied the hotkey is the only way left to
-    /// anchor, so the calibration window says so rather than letting it fail silently.
+    /// anchor, so the Status window says so rather than letting it fail silently.
     private(set) var isReanchorHotkeyAvailable = true
     /// Whether the overlay is blurring a picture of the screen or covering it blind, mirrored
-    /// from the overlay so the calibration window can say which.
+    /// from the overlay so the Status window can say which.
     private(set) var captureAvailability: CaptureAvailability = .available
     /// `true` when a lock the away policy asked for did not take effect. The displays stay
     /// blurred, so nothing is exposed, but the Mac is not locked and the user has to be told
     /// rather than left believing it is. Cleared when they come back or the screen does lock.
     private(set) var didFailToLock = false
+    /// When the last lock failure happened. Outlives `didFailToLock`, which clears the moment the
+    /// user is back: the owner is the one who needs to hear about it, and they only look at the
+    /// menu once they have returned. Cleared by a lock that works, or once the owner has seen it.
+    private(set) var lockFailedAt: Date?
 
     private var policy: AwayPolicyRunner
     /// The settings the providers were last configured with, so a change can be applied to the
@@ -53,10 +57,20 @@ final class AppCoordinator {
     private var displayPoseUpdatedAt: Date?
     private var tasks: [Task<Void, Never>] = []
     private var escalation: Task<Void, Never>?
+    private var lockCheck: Task<Void, Never>?
+    private var resumeTimer: Task<Void, Never>?
+    /// Whether anything is covered right now, so Status and Settings can rise above the sheet.
+    private(set) var isCovering = false
+    /// Whether the display being looked at, or every display, is covered: what the icon's slash
+    /// means. A display blurred by design while you look at another one is not news.
+    private(set) var coversView = false
     private var screenParametersObserver: (any NSObjectProtocol)?
     private var isTornDown = false
 
-    /// How often the calibration window's live numbers are allowed to change.
+    private static let lockConfirmationDelay: Duration = .seconds(3)
+    private static let menuGlanceDuration: Duration = .seconds(1)
+
+    /// How often the Status window's live numbers are allowed to change.
     private static let displayPoseInterval: TimeInterval = 0.1
 
     init(
@@ -95,6 +109,7 @@ final class AppCoordinator {
         subscribe()
         observeSettings()
         applyRunState()
+        scheduleResume()
     }
 
     func stop() {
@@ -103,6 +118,8 @@ final class AppCoordinator {
         tasks = []
         escalation?.cancel()
         escalation = nil
+        lockCheck?.cancel()
+        resumeTimer?.cancel()
         if let screenParametersObserver {
             NotificationCenter.default.removeObserver(screenParametersObserver)
         }
@@ -120,22 +137,61 @@ final class AppCoordinator {
         gaze.anchor(display, source: .hotkey)
     }
 
-    /// Everything that follows from the toggle happens in `applyRunState`, driven by the
-    /// settings observer, so the menu bar and the settings window cannot diverge.
-    func setEnabled(_ enabled: Bool) {
-        settings.settings.isEnabled = enabled
+    /// Re-anchors from the menu. Picking a menu item means looking up at the menu bar, so the
+    /// pose is taken a moment later, once the head is back on the display.
+    /// The display is the one under the pointer at the click, which is the one whose menu bar was
+    /// used; only the pose waits, since the pointer may already be heading elsewhere.
+    func reanchorAfterMenu() {
+        guard let display = DisplayInfo.containing(NSEvent.mouseLocation)?.id else { return }
+        Task { [weak self] in
+            try? await Task.sleep(for: Self.menuGlanceDuration)
+            self?.gaze.anchor(display, source: .hotkey)
+        }
     }
 
-    /// Whether a "Grant…" button makes sense for `permission` right now.
+    /// Pauses for `duration`, or until `resume()` when `nil`. Everything that follows happens in
+    /// `applyRunState`, driven by the settings observer.
+    func pause(for duration: TimeInterval?) {
+        settings.settings.resumeAt = duration.map { timeSource.now.addingTimeInterval($0) }
+        settings.settings.isEnabled = false
+        scheduleResume()
+    }
+
+    func resume() {
+        resumeTimer?.cancel()
+        settings.settings.resumeAt = nil
+        settings.settings.isEnabled = true
+    }
+
+    /// A timed pause outlives a relaunch, so this runs at start as well as when pausing.
+    private func scheduleResume() {
+        resumeTimer?.cancel()
+        guard !settings.settings.isEnabled, let resumeAt = settings.settings.resumeAt else { return }
+        let delay = max(0, resumeAt.timeIntervalSince(timeSource.now))
+        resumeTimer = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(delay))
+            guard !Task.isCancelled else { return }
+            self?.resume()
+        }
+    }
+
+    /// Whether typing reaches the app, so no instruction tells the user to type for nothing.
+    var canType: Bool {
+        permissions.status(of: .inputMonitoring) == .granted
+    }
+
+    /// Whether an "Allow…" button makes sense for `permission` right now.
     ///
     /// Motion is the exception. The only way to raise its prompt is to probe the motion stream,
     /// which belongs to the run gate, so an undetermined Motion status is unanswerable while
-    /// tracking is already running — and while it is running the status is known anyway. A
+    /// tracking is already running, and while it is running the status is known anyway. A
     /// Motion status that TCC has already decided only ever opens System Settings, which the
     /// gate has no opinion about.
     func canRequest(_ permission: Permission) -> Bool {
         let status = permissions.status(of: permission)
         guard status != .granted else { return false }
+        // macOS asks for Bluetooth itself when proximity first starts, with the AirPods on.
+        if permission == .bluetooth, status == .notDetermined { return false }
         guard permission == .motion, status == .notDetermined else { return true }
         return !isRunGateOpen
     }
@@ -147,44 +203,92 @@ final class AppCoordinator {
         permissions.request(permission)
     }
 
-    /// One line for the menu bar: what the user is doing right now, from the coordinator's
-    /// point of view. Kept as a pure function of state so it is trivially testable.
-    var statusLine: String {
-        Self.statusLine(
-            isEnabled: settings.settings.isEnabled,
+    /// What the menu bar shows: the status line, its icon and the icon's VoiceOver label.
+    var status: AppStatus {
+        AppStatus.current(
+            settings: settings.settings,
             wearState: wearState,
             gazeState: gazeState,
             presenceState: presenceState,
             didFailToLock: didFailToLock,
-            displayName: { id in displays.first(where: { $0.id == id })?.name }
+            hasUnanchoredDisplay: hasUnanchoredDisplay,
+            displayName: displayName
         )
     }
 
-    nonisolated static func statusLine(
-        isEnabled: Bool,
-        wearState: WearState,
-        gazeState: GazeState,
-        presenceState: PresenceState,
-        didFailToLock: Bool,
-        displayName: (DisplayID) -> String?
-    ) -> String {
-        guard isEnabled else { return "Disabled" }
-        // Outranks everything below it: the app was asked to lock, said it would, and did not.
-        if didFailToLock { return "Could not lock the screen" }
-        if presenceState.isAway { return "Away" }
-        if case .unknown(let reason) = wearState {
-            switch reason {
-            case .noHeadphonesConnected: return "No AirPods connected"
-            case .sampleGap: return "No head data"
-            case .motionUnavailable: return "Head tracking unavailable"
-            case .permissionDenied: return "Motion access denied"
-            }
+    /// Things the user can fix, worst first. Permissions are read from the auditor's cache, so
+    /// callers that need them fresh call `permissions.refresh()` first.
+    var issues: [Issue] {
+        Issue.current(
+            lockFailedAt: lockFailedAt,
+            // Offered once head tracking can work, so first run is only about getting there.
+            lockUntested: !settings.settings.lockTested && settings.settings.awayPolicy != .doNothing
+                && permissions.status(of: .motion) == .granted,
+            permissions: permissions.status(of:),
+            capture: captureAvailability,
+            isCovering: isCovering,
+            isHotkeyAvailable: isReanchorHotkeyAvailable,
+            hotkey: settings.settings.reanchorHotkey
+        )
+    }
+
+    /// Whether some attached display has no anchor, so looking at it cannot be told from looking
+    /// away.
+    var hasUnanchoredDisplay: Bool {
+        displays.contains { gaze.anchors[$0.id] == nil }
+    }
+
+    /// The name macOS gives a display, for anywhere the UI would otherwise print an ID.
+    func displayName(_ id: DisplayID) -> String {
+        displays.first { $0.id == id }?.name ?? "an unknown display"
+    }
+
+    /// Re-anchoring needs head data to record, so it only does anything while the app is running
+    /// and the AirPods are worn.
+    var canReanchor: Bool {
+        isRunGateOpen && wearState.isWorn
+    }
+
+    /// Locks now, from the Status window, so the owner can check that a change to Lock Screen
+    /// settings worked. A lock that takes clears the failure on its own.
+    func lockNow() {
+        lock()
+    }
+
+    /// Whether a lock started by PrivacyPods has ever been seen to take on this Mac. Until then the
+    /// owner is offered a test, so the first real lock is not also the first try.
+    var isLockTested: Bool {
+        settings.settings.lockTested
+    }
+
+    func dismissLockFailure() {
+        lockFailedAt = nil
+    }
+
+    /// Re-reads every permission, and picks up a Motion grant made in System Settings while the
+    /// app was running: the tracker refused to start without it and nothing else restarts it.
+    func refreshPermissions() {
+        permissions.refresh()
+        if isRunGateOpen, wearState == .unknown(.permissionDenied), permissions.status(of: .motion) == .granted {
+            headTracking.start()
         }
-        switch gazeState {
-        case .looking(let id): return "Looking at: \(displayName(id) ?? id.description)"
-        case .away: return "Looking away"
-        case .unknown: return "Not anchored yet"
+        // A blind sheet would otherwise keep asking for a permission that has just been given.
+        if captureAvailability == .unavailable(.screenRecordingDenied), permissions.status(of: .screenRecording) == .granted {
+            retryCapture()
         }
+    }
+
+    /// Stops and starts the motion stream, for a tracker that stopped on an error.
+    func restartHeadTracking() {
+        headTracking.stop()
+        if isRunGateOpen { headTracking.start() }
+    }
+
+    /// Rebuilds every overlay surface, which restarts their captures. For a stream that failed
+    /// for a reason that has since gone away.
+    func retryCapture() {
+        overlay.teardown()
+        recomputeOverlay()
     }
 
     // MARK: - Subscriptions
@@ -347,6 +451,16 @@ final class AppCoordinator {
 
     private func handle(locked: Bool) {
         isLocked = locked
+        if locked {
+            lockFailedAt = nil
+            // The lock notification is the proof a pending check waits for. Settle it here: an
+            // unlock inside the check's window (Touch ID, a Watch) must not read as a failure.
+            if lockCheck != nil {
+                lockCheck?.cancel()
+                lockCheck = nil
+                settings.settings.lockTested = true
+            }
+        }
         applyRunState()
     }
 
@@ -358,16 +472,43 @@ final class AppCoordinator {
         switch action {
         case .lock:
             Log.app.notice("Away policy is locking the screen")
-            didFailToLock = !screenLock.lock()
-            if didFailToLock {
-                Log.app.error("The screen did not lock; the displays stay blurred instead")
-            }
+            lock()
         case .clear:
             didFailToLock = false
         case .blur:
             break
         }
         recomputeOverlay()
+    }
+
+    /// Locks, and then checks that it worked. `lock()` reporting success is not proof: its
+    /// fallback only sleeps the displays, which locks nothing unless the password delay is set to
+    /// immediately. The lock notification is the proof, so its absence after a few seconds counts
+    /// as a failure.
+    private func lock() {
+        guard screenLock.lock() else {
+            lockFailed()
+            return
+        }
+        lockCheck?.cancel()
+        lockCheck = Task { [weak self] in
+            try? await Task.sleep(for: Self.lockConfirmationDelay)
+            guard let self, !Task.isCancelled else { return }
+            self.lockCheck = nil
+            if self.screenLock.isLocked {
+                self.settings.settings.lockTested = true
+            } else {
+                self.lockFailed()
+            }
+        }
+    }
+
+    private func lockFailed() {
+        Log.app.error("The screen did not lock; the displays stay blurred instead")
+        // A lock that worked once and has now failed is not "working".
+        settings.settings.lockTested = false
+        didFailToLock = isRunGateOpen && presenceState.isAway
+        lockFailedAt = timeSource.now
     }
 
     private func publish(pose: HeadPose, at instant: Date) {
@@ -390,7 +531,49 @@ final class AppCoordinator {
             awayResponse: policy.response,
             isLocked: isLocked
         )
-        overlay.setBlurred(toBlur, radius: settings.settings.blurRadius)
+        let hotkey = isReanchorHotkeyAvailable ? settings.settings.reanchorHotkey.label : nil
+        isCovering = !toBlur.isEmpty
+        coversView = isCovering && (gazeState.display.map(toBlur.contains) ?? true)
+        var notices: [DisplayID: String] = [:]
+        for id in toBlur {
+            notices[id] = Self.overlayNotice(
+                gaze: gazeState, wearState: wearState, awayResponse: policy.response, hotkey: hotkey, canType: canType,
+                displayIsAnchored: gaze.anchors[id] != nil
+            )
+        }
+        overlay.setBlurred(toBlur, radius: settings.settings.blurRadius, notices: notices)
+    }
+
+    /// The line a blurred display carries when looking at it would not, on its own, clear it.
+    /// A normal look-away blur clears the moment the user looks back, so it says nothing, and an
+    /// away blur says nothing because whoever is reading it is not the owner.
+    nonisolated static func overlayNotice(
+        gaze: GazeState,
+        wearState: WearState,
+        awayResponse: AwayResponse,
+        hotkey: String?,
+        canType: Bool,
+        displayIsAnchored: Bool = true
+    ) -> String? {
+        guard awayResponse < .blur else { return nil }
+        // "Away" may be the user looking at a display that has no anchor yet, and looking at it
+        // would never clear it, so that display, and only that one, says how to anchor it.
+        if gaze == .away, !displayIsAnchored {
+            let input = canType ? "type" : "move the pointer around"
+            return "Looking here? This display is not anchored yet. Put the pointer here and \(input)"
+                + (hotkey.map { ", or press \($0)." } ?? ".")
+        }
+        guard gaze == .unknown else { return nil }
+        guard case .unknown(let reason) = wearState else {
+            return "Not anchored. " + AppStatus.anchoringAdvice(hotkey: hotkey, canType: canType)
+        }
+        let fix = switch reason {
+        case .sampleGap: "Put them back in"
+        case .noHeadphonesConnected: "Connect them"
+        case .permissionDenied: "Choose Allow Motion… in the PrivacyPods menu"
+        case .motionUnavailable: "Choose Status… in the PrivacyPods menu and click Restart Head Tracking"
+        }
+        return "\(reason.title). \(fix), or choose Pause in the PrivacyPods menu."
     }
 
     /// What should be blurred right now, as a pure function of state. An away escalation to

@@ -129,7 +129,7 @@ final class DisplayCapture {
             }
 
             // `sharingType = .none` already keeps the overlay out of the frame; excluding the app
-            // outright also keeps the settings and calibration windows out of the blur.
+            // outright also keeps the settings and Status windows out of the blur.
             let ownApplications = content.applications.filter {
                 $0.bundleIdentifier == Bundle.main.bundleIdentifier
             }
