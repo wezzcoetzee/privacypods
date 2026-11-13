@@ -55,6 +55,16 @@ stop acting.
 There is no API to stop this from the Mac side. Manage it on the phone:
 Settings > Bluetooth > your AirPods > Connect to This iPhone > When Last Connected to This iPhone.
 
+## Install
+
+Download the DMG from [Releases](https://github.com/wezzcoetzee/privacypods/releases) and drag PrivacyPods to Applications.
+
+The app is not notarized, so the first launch shows "Apple could not verify PrivacyPods". Click Done, then open System Settings, Privacy & Security, and click Open Anyway next to PrivacyPods. Or clear the quarantine flag:
+
+```sh
+xattr -dr com.apple.quarantine /Applications/PrivacyPods.app
+```
+
 ## Permissions
 
 | Permission | Why | Without it |
