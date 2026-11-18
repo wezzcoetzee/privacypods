@@ -97,7 +97,8 @@ sample callbacks, `system_profiler`), it hops back to the main actor before emit
 
 - **`BlurMode`**: `.off`, `.whenLookingAway` (default), `.unfocusedDisplays`. Carries a `title`
   for the picker so the menu bar and the settings window cannot disagree.
-- **`FailMode`**: `.open` (default, stay readable during a sensor gap) or `.closed` (blur).
+- **`FailMode`**: `.open` (stay readable during a sensor gap) or `.closed` (blur). `.open` is
+  what applies until first run has an answer; `AppSettings.choose(failMode:)` records one.
   Governs blur only; a gap never produces an away state or a lock in either mode.
 - **`AwayPolicy`**: `.doNothing`, `.blurThenLock(blurAfter:lockAfter:)` (default 5 s / 30 s),
   `.lockImmediately`. `response(awayFor:)` maps elapsed seconds to an `AwayResponse`; it is pure
@@ -106,9 +107,13 @@ sample callbacks, `system_profiler`), it hops back to the main actor before emit
   `RegisterEventHotKey` wants and `modifiers.symbols` is the `⌃⌥⌘` string for menus.
   `.reanchorDefault` is ⌃⌥⌘R.
 - **`AppSettings`**: `isEnabled`, `blurMode`, `awayPolicy`, `failMode`, `acceptanceCone`,
-  `awayGrace` (0.7 s), `reanchorHotkey`, `launchAtLogin`, `blurRadius` (70 pt). Every field has
-  a default and decoding is field-by-field, so adding a setting does not wipe a user's stored
-  preferences. Persist the whole struct as JSON under `AppSettings.defaultsKey`. A field that
+  `awayGrace` (0.7 s), `reanchorHotkey`, `launchAtLogin`, `blurRadius` (70 pt), and the
+  first-run flags `lockTested`, `launchAtLoginOffered`, `failModeChosen` and `setupFinished`.
+  Every field has a default and decoding is field-by-field, so adding a setting does not wipe a
+  user's stored preferences. The one exception to "missing means default": `failModeChosen` and
+  `setupFinished` decode as `true` when absent, because stored settings without them come from a
+  build that had no setup, whose owner is past it. `hasDoneSetupSteps` says whether the owner's
+  own steps are done. Persist the whole struct as JSON under `AppSettings.defaultsKey`. A field that
   is present but malformed still throws; the settings store treats that as "use defaults".
 - **`BlurMode.displaysToBlur(gaze:allDisplays:failMode:)`**: the single source of truth for
   what is blurred right now. It handles the mode matrix and the fail-mode gap rule. The caller

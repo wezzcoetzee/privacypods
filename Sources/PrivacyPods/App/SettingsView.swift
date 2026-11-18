@@ -28,7 +28,10 @@ struct SettingsView: View {
                         .padding(.vertical, 7)
                 }
                 LabeledContent("If head data stops") {
-                    Picker("If head data stops", selection: $settings.settings.failMode) {
+                    Picker("If head data stops", selection: Binding(
+                        get: { settings.settings.failMode },
+                        set: { settings.settings.choose(failMode: $0) }
+                    )) {
                         ForEach(FailMode.allCases) { Text($0.title).tag($0) }
                     }
                     .labelsHidden()
@@ -76,6 +79,7 @@ struct SettingsView: View {
             }
 
             PaneSection(title: "Tracking") {
+                PaneLead(text: "Each display is anchored to where your head points while you work on it. The ranges set how far you can turn or tilt away from that and still count as looking at it.")
                 LabeledContent("Horizontal range") {
                     presetPicker("Horizontal range", degrees(\.yawHalfAngle), presets: Self.rangePresets) { "±\(Int($0))°" }
                 }

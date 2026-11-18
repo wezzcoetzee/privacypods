@@ -1,0 +1,300 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-18T06:00:00.000Z",
+  "title": "Design System: PrivacyPods",
+  "extensions": {
+    "colorMeta": {
+      "true-black": {
+        "role": "neutral",
+        "displayName": "True Black",
+        "canonical": "Color.black / NSColor.black",
+        "tonalRamp": [
+          "#000000",
+          "#0F0F0F",
+          "#1C1C1E",
+          "#2A2A2D",
+          "#48484A",
+          "#8E8E93",
+          "#C7C7CC",
+          "#F2F2F7"
+        ]
+      },
+      "white": {
+        "role": "neutral",
+        "displayName": "White",
+        "canonical": "Color.white",
+        "tonalRamp": [
+          "#1C1C1E",
+          "#3A3A3C",
+          "#636366",
+          "#8E8E93",
+          "#AEAEB2",
+          "#C7C7CC",
+          "#E5E5EA",
+          "#FFFFFF"
+        ]
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "Color.white.opacity(0.14)"
+      },
+      "attention-orange": {
+        "role": "primary",
+        "displayName": "Attention Orange",
+        "canonical": "Color.orange / NSColor.systemOrange (dark appearance)",
+        "tonalRamp": [
+          "#3D2200",
+          "#5C3300",
+          "#8A4D00",
+          "#B86600",
+          "#E68000",
+          "#FF9F0A",
+          "#FFC266",
+          "#FFE4BF"
+        ]
+      },
+      "night-glass": {
+        "role": "neutral",
+        "displayName": "Night Glass",
+        "canonical": "NSColor(white: 0.06, alpha: 1)",
+        "tonalRamp": [
+          "#000000",
+          "#0F0F0F",
+          "#1C1C1E",
+          "#2A2A2D",
+          "#48484A",
+          "#8E8E93",
+          "#C7C7CC",
+          "#F2F2F7"
+        ]
+      },
+      "glass-scrim": {
+        "role": "neutral",
+        "displayName": "Glass Scrim",
+        "canonical": "NSColor(white: 0.06, alpha: 0.35)"
+      },
+      "glass-scrim-notice": {
+        "role": "neutral",
+        "displayName": "Glass Scrim, Notice",
+        "canonical": "NSColor(white: 0.06, alpha: 0.6)"
+      },
+      "soft-white": {
+        "role": "neutral",
+        "displayName": "Soft White",
+        "canonical": "rgba(255, 255, 255, 0.72), store images only"
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Status window first line: what the app is doing now."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Section titles in Settings and Status, hairline under."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Row labels and values; tabular digits on values."
+      },
+      "callout": {
+        "displayName": "Callout",
+        "purpose": "Notices and explanatory lines under a setting."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Permission rationale, only when there is something to decide."
+      },
+      "overlay-notice": {
+        "displayName": "Overlay Notice",
+        "purpose": "The one centered line on a covered display saying why it is blind."
+      },
+      "store-display": {
+        "displayName": "Store Display",
+        "purpose": "Store image headlines; 56px on stacked slides."
+      },
+      "store-body": {
+        "displayName": "Store Body",
+        "purpose": "One or two plain sentences under a store headline, in Soft White."
+      },
+      "store-wordmark": {
+        "displayName": "Store Wordmark",
+        "purpose": "App icon plus name lockup on the hero slide."
+      }
+    },
+    "shadows": [
+      {
+        "name": "overlay-notice-text",
+        "value": "0 0 6px rgba(0, 0, 0, 0.8)",
+        "purpose": "Keeps the overlay notice readable over a pale blurred frame without a backing plate."
+      },
+      {
+        "name": "store-screen",
+        "value": "0 40px 120px rgba(0, 0, 0, 0.7)",
+        "purpose": "Lifts the fake Mac display off the black store field."
+      },
+      {
+        "name": "store-window",
+        "value": "0 40px 120px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.08)",
+        "purpose": "Real window renders placed on store slides."
+      },
+      {
+        "name": "store-glow",
+        "value": "radial-gradient(ellipse 620px 420px at 72% 50%, rgba(255, 255, 255, 0.10), transparent 70%)",
+        "purpose": "The one soft light behind the product on a store slide."
+      }
+    ],
+    "motion": [
+      {
+        "name": "overlay-fade",
+        "value": "150ms ease-out",
+        "purpose": "A covered display fading in or out. Zero when Reduce Motion is on."
+      },
+      {
+        "name": "blur-default",
+        "value": "Gaussian, 70pt default radius, edge-clamped",
+        "purpose": "The overlay blur; user-adjustable via Strength."
+      }
+    ],
+    "breakpoints": []
+  },
+  "components": [
+    {
+      "name": "Pane Section",
+      "kind": "custom",
+      "refersTo": "pane-section-title",
+      "description": "A section in Settings or Status: title, hairline, then rows with hairlines under each.",
+      "html": "<div class=\"ds-pane\"><div class=\"ds-section\"><div class=\"ds-section-title\">Detection</div><div class=\"ds-row\"><span class=\"ds-row-label\">AirPods</span><span class=\"ds-row-value\">Worn</span></div><div class=\"ds-row\"><span class=\"ds-row-label\">Presence</span><span class=\"ds-row-value\">At the Mac</span></div></div></div>",
+      "css": ".ds-pane { background: #000; color: #fff; padding: 12px 20px 20px; width: 480px; font: 13px/1.3 -apple-system, system-ui, sans-serif; } .ds-section-title { font-weight: 600; padding-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.14); } .ds-row { display: flex; align-items: center; gap: 12px; min-height: 30px; padding: 7px 0; box-sizing: border-box; border-bottom: 1px solid rgba(255,255,255,0.14); } .ds-row-label { flex: 1; } .ds-row-value { font-variant-numeric: tabular-nums; }"
+    },
+    {
+      "name": "Row with Fix Button",
+      "kind": "custom",
+      "refersTo": "pane-row",
+      "description": "A row whose value is a thing to fix, with the button that fixes it inline.",
+      "html": "<div class=\"ds-pane\"><div class=\"ds-row\"><span class=\"ds-row-label\">Screen lock</span><span class=\"ds-row-value ds-attention\">Failed at 14:02</span><button class=\"ds-btn\">Lock Now to Test</button></div></div>",
+      "css": ".ds-pane { background: #000; color: #fff; padding: 12px 20px; width: 480px; font: 13px/1.3 -apple-system, system-ui, sans-serif; } .ds-row { display: flex; align-items: center; gap: 12px; min-height: 30px; padding: 7px 0; box-sizing: border-box; border-bottom: 1px solid rgba(255,255,255,0.14); } .ds-row-label { flex: 1; } .ds-row-value { font-variant-numeric: tabular-nums; } .ds-attention { color: #FF9F0A; } .ds-btn { font: inherit; color: #fff; background: rgba(255,255,255,0.16); border: none; border-radius: 6px; padding: 3px 12px; cursor: default; } .ds-btn:hover { background: rgba(255,255,255,0.22); } .ds-btn:active { background: rgba(255,255,255,0.3); } .ds-btn:focus-visible { outline: 3px solid rgba(10,132,255,0.6); outline-offset: 1px; }"
+    },
+    {
+      "name": "Push Button",
+      "kind": "button",
+      "refersTo": "pane-row",
+      "description": "Stock macOS dark-appearance push button. Approximation for preview only; the app never restyles it.",
+      "html": "<div style=\"background:#000;padding:16px;display:flex;gap:8px\"><button class=\"ds-btn\">Open Lock Screen Settings…</button><button class=\"ds-btn\">Dismiss</button></div>",
+      "css": ".ds-btn { font: 13px -apple-system, system-ui, sans-serif; color: #fff; background: rgba(255,255,255,0.16); border: none; border-radius: 6px; padding: 3px 12px; cursor: default; } .ds-btn:hover { background: rgba(255,255,255,0.22); } .ds-btn:active { background: rgba(255,255,255,0.3); } .ds-btn:focus-visible { outline: 3px solid rgba(10,132,255,0.6); outline-offset: 1px; }"
+    },
+    {
+      "name": "Notice",
+      "kind": "custom",
+      "refersTo": "pane-notice",
+      "description": "One-line warning under a row: triangle icon plus callout text in Attention Orange, fix button trailing.",
+      "html": "<div class=\"ds-notice-wrap\"><span class=\"ds-notice\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M12 2.5c.6 0 1.1.3 1.4.8l9.2 16c.6 1-.1 2.2-1.3 2.2H2.7c-1.2 0-1.9-1.2-1.3-2.2l9.2-16c.3-.5.8-.8 1.4-.8Zm0 6.2c-.7 0-1.2.5-1.1 1.2l.3 5c0 .5.4.8.8.8s.8-.3.8-.8l.3-5c.1-.7-.4-1.2-1.1-1.2Zm0 8.3a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4Z\"/></svg>Waiting for your approval in Login Items.</span><button class=\"ds-btn\">Open Login Items…</button></div>",
+      "css": ".ds-notice-wrap { background: #000; padding: 7px 20px; width: 480px; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; font-family: -apple-system, system-ui, sans-serif; } .ds-notice { color: #FF9F0A; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; } .ds-btn { font: 13px -apple-system, system-ui, sans-serif; color: #fff; background: rgba(255,255,255,0.16); border: none; border-radius: 6px; padding: 3px 12px; } .ds-btn:hover { background: rgba(255,255,255,0.22); } .ds-btn:focus-visible { outline: 3px solid rgba(10,132,255,0.6); outline-offset: 1px; }"
+    },
+    {
+      "name": "Info Notice",
+      "kind": "custom",
+      "refersTo": "pane-notice",
+      "description": "A line under a row for something worth saying that is not counted as a fix: white, info.circle, trailing button when there is one.",
+      "html": "<div class=\"ds-notice-wrap\"><span class=\"ds-notice-info\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"10\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"/><rect x=\"11\" y=\"10\" width=\"2\" height=\"7\" rx=\"1\" fill=\"currentColor\"/><circle cx=\"12\" cy=\"7.2\" r=\"1.3\" fill=\"currentColor\"/></svg>DELL S2725QC overlaps the display you're looking at, so PrivacyPods can mix them up. Narrow Horizontal range to fix it.</span><button class=\"ds-btn\">Open Settings…</button></div>",
+      "css": ".ds-notice-wrap { background: #000; padding: 7px 20px; width: 520px; box-sizing: border-box; display: flex; align-items: center; gap: 12px; font-family: -apple-system, system-ui, sans-serif; } .ds-notice-info { color: #fff; font-size: 12px; line-height: 1.35; display: flex; align-items: flex-start; gap: 6px; flex: 1; } .ds-notice-info svg { flex: none; margin-top: 1px; } .ds-btn { font: 13px -apple-system, system-ui, sans-serif; color: #fff; background: rgba(255,255,255,0.16); border: none; border-radius: 6px; padding: 3px 12px; white-space: nowrap; } .ds-btn:hover { background: rgba(255,255,255,0.22); } .ds-btn:focus-visible { outline: 3px solid rgba(10,132,255,0.6); outline-offset: 1px; }"
+    },
+    {
+      "name": "Status Headline",
+      "kind": "custom",
+      "refersTo": "status-headline",
+      "description": "Top of the Status window: what is happening, what it costs the screens, the next step, and a count of things to fix.",
+      "html": "<div class=\"ds-headline\"><div class=\"ds-headline-title\">No head data from AirPods</div><div>Screens readable.</div><div>Put your AirPods back in. If your iPhone keeps taking them, set them to connect to it only when last connected.</div></div>",
+      "css": ".ds-headline { background: #000; color: #fff; padding: 12px 20px; width: 520px; box-sizing: border-box; display: flex; flex-direction: column; gap: 6px; font: 13px/1.35 -apple-system, system-ui, sans-serif; } .ds-headline-title { font-size: 17px; font-weight: 600; } .ds-attention { color: #FF9F0A; }"
+    },
+    {
+      "name": "Overlay Sheet",
+      "kind": "custom",
+      "refersTo": "overlay-sheet",
+      "description": "A covered display: blurred capture under a flat scrim, or opaque Night Glass with one line saying why.",
+      "html": "<div class=\"ds-overlay\"><div class=\"ds-overlay-frame\"></div><div class=\"ds-overlay-scrim\"></div><div class=\"ds-overlay-notice\">This display is dark because Screen Recording is off. To blur it instead, choose Allow Screen Recording… in the PrivacyPods menu.</div></div>",
+      "css": ".ds-overlay { position: relative; width: 480px; height: 300px; background: #0F0F0F; overflow: hidden; font-family: -apple-system, system-ui, sans-serif; } .ds-overlay-frame { position: absolute; inset: -20px; background: radial-gradient(circle at 25% 20%, #3b5bdb, transparent 45%), radial-gradient(circle at 80% 75%, #9c36b5, transparent 50%), #f4f4f2; filter: blur(16px); } .ds-overlay-scrim { position: absolute; inset: 0; background: rgba(15,15,15,0.6); } .ds-overlay-notice { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 0 10%; text-align: center; color: #fff; font-size: 17px; font-weight: 600; line-height: 1.35; text-shadow: 0 0 6px rgba(0,0,0,0.8); }"
+    },
+    {
+      "name": "Menu Bar Icon States",
+      "kind": "nav",
+      "refersTo": "pane-row",
+      "description": "The eye family as status. Dimmed only for states the user chose.",
+      "html": "<div class=\"ds-legend\"><div class=\"ds-legend-row\"><svg width=\"22\" height=\"14\" viewBox=\"0 0 22 14\" aria-hidden=\"true\"><path d=\"M1 7c2.5-4 6-6 10-6s7.5 2 10 6c-2.5 4-6 6-10 6S3.5 11 1 7Z\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\"/><circle cx=\"11\" cy=\"7\" r=\"3\" fill=\"currentColor\"/></svg><span>Protecting</span></div><div class=\"ds-legend-row ds-dim\"><svg width=\"22\" height=\"14\" viewBox=\"0 0 22 22\" aria-hidden=\"true\"><circle cx=\"11\" cy=\"11\" r=\"9\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\"/><rect x=\"8\" y=\"7\" width=\"2\" height=\"8\" rx=\"1\" fill=\"currentColor\"/><rect x=\"12\" y=\"7\" width=\"2\" height=\"8\" rx=\"1\" fill=\"currentColor\"/></svg><span>Paused, by you</span></div></div>",
+      "css": ".ds-legend { background: #000; color: #fff; padding: 16px 20px; display: grid; gap: 10px; font: 15px -apple-system, system-ui, sans-serif; } .ds-legend-row { display: flex; align-items: center; gap: 12px; } .ds-dim svg { opacity: 0.4; }"
+    },
+    {
+      "name": "Store Headline",
+      "kind": "custom",
+      "refersTo": "pane-row",
+      "description": "Store image copy column: wordmark, tight bold headline, one soft sentence, one radial glow.",
+      "html": "<div class=\"ds-store\"><div class=\"ds-store-brand\">PrivacyPods</div><h1 class=\"ds-store-h1\">Look away.<br>Your screen blurs.</h1><p class=\"ds-store-p\">Your AirPods already know where your head is pointing.</p></div>",
+      "css": ".ds-store { position: relative; background: #000 radial-gradient(ellipse 420px 300px at 80% 50%, rgba(255,255,255,0.10), transparent 70%); color: #fff; padding: 40px; display: flex; flex-direction: column; gap: 22px; font-family: -apple-system, system-ui, sans-serif; } .ds-store-brand { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; } .ds-store-h1 { margin: 0; font-size: 64px; line-height: 1.04; font-weight: 700; letter-spacing: -0.03em; } .ds-store-p { margin: 0; font-size: 24px; line-height: 1.38; color: rgba(255,255,255,0.72); max-width: 470px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Frosted Glass at Night",
+    "overview": "The product's one real visual is the covered screen: a live capture, blurred until it can't be read, with a thin dark scrim over it. Everything else is the night around that glass. Windows are true black with white text and the title bar merges into the content, so the chrome steps back and only the facts are left. Nothing competes with the blur for attention, and nothing is drawn that the blur itself doesn't need.\n\nThe interface is dense and terse in the macOS manner: one fact per row, label on the left and value on the right, with hairlines between rows instead of cards. Controls are stock AppKit and SwiftUI, native and invisible. The brand comes through in three things only: the black, the eye glyph in the menu bar, and the copy. Color is close to absent. One orange marks things that need fixing, and it never appears for any other reason.\n\nThe store images use the same world at poster scale. They show a black field with one soft light behind the product, big tight SF Pro Display headlines, and real renders of the app on a fake Mac.",
+    "keyCharacteristics": [
+      "True black windows with the title bar merged in; white text throughout.",
+      "Hairline-separated rows, never cards, grouped fills or section backgrounds.",
+      "One accent (Attention Orange), only for things to fix, always paired with an icon or a count.",
+      "The covered screen is a captured frame plus a flat scrim, never live vibrancy.",
+      "SF Symbols eye family as the identity; dimming means the user chose that state.",
+      "Windows size to their content: no scroll views, nothing below the fold."
+    ],
+    "rules": [
+      {
+        "name": "The One Signal Rule",
+        "body": "Attention Orange means \"something here needs fixing\" and nothing else. Never use it for emphasis, branding, selection or decoration, and never let it carry meaning without an icon or a count beside it.",
+        "section": "colors"
+      },
+      {
+        "name": "The Not Dead Black Rule",
+        "body": "A covered display is Night Glass, never pure #000. A pure black display looks broken, and often the covered display is the only thing the user can see.",
+        "section": "colors"
+      },
+      {
+        "name": "The System Size Rule",
+        "body": "In the app, use the system text sizes and weights. Don't add a brand face, and don't add sizes between the ones above.",
+        "section": "typography"
+      },
+      {
+        "name": "The Nothing Below the Fold Rule",
+        "body": "Windows have no scroll view. If content doesn't fit, cut it or move it; don't add scrolling.",
+        "section": "layout"
+      },
+      {
+        "name": "The Glass Never Leaks Rule",
+        "body": "A covered screen is a captured frame, blurred, under a flat scrim. Never use NSGlassEffectView, vibrancy or any live backdrop material on the overlay, because those refract whatever is behind the window. Without a capture, show opaque Night Glass with one line saying why, never the live screen.",
+        "section": "elevation"
+      },
+      {
+        "name": "The One Glow Rule",
+        "body": "A store image gets one soft white radial light behind the product (10% white, fading out by 70%). It gets no other decorative light, gradient or texture. The colored wallpaper inside the fake screen is content being blurred, not decoration.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do set every window to True Black with the title bar transparent and dark-appearance, so the title bar merges into the content.",
+      "Do separate sections and rows with the white-at-14% hairline, and nothing else.",
+      "Do pair every Attention Orange element with exclamationmark.triangle.fill or a count in the headline.",
+      "Do use a white info.circle notice for anything worth a line that the headline does not count.",
+      "Do split a status into its title and its effect (\"Screens readable.\") rather than adding the effect to the title in brackets.",
+      "Do keep each issue in one place, in its own section next to the button that fixes it; the headline only counts them.",
+      "Do use the system font at system sizes, with tabular digits for any value that changes.",
+      "Do dim the menu bar icon only for states the user chose (paused, everything off).",
+      "Do respect Reduce Motion: the 150ms overlay fade becomes instant."
+    ],
+    "donts": [
+      "Don't use grouped Form sections, cards, rounded fills or section backgrounds. They break the black.",
+      "Don't use Attention Orange, or any other color, for emphasis, selection or decoration.",
+      "Don't put NSGlassEffectView, vibrancy or a live material on the overlay.",
+      "Don't make a covered display pure black, and never show the live screen when capture is unavailable.",
+      "Don't restyle native buttons, switches, pickers or menus.",
+      "Don't add scroll views to the Status or Settings windows.",
+      "Don't add decorative light, gradients or texture to store images beyond the one radial glow."
+    ]
+  }
+}

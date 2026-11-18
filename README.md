@@ -22,13 +22,17 @@ leaving and never locks; it only blurs if you ask it to.
   it to, but silence alone never decides you left and never locks. You count as away once the
   AirPods show you walking off, or 30 seconds after they disconnect with no typing or pointer
   movement (taking them out and leaving looks like that).
+- Tells you when it stops protecting. If the AirPods go quiet and you chose to keep the screens
+  readable, a notification says so, once a launch.
+- Walks you through setup on first launch: connect your AirPods, choose what happens if they go
+  quiet, and test the lock before you rely on it.
 
 ## Screenshots
 
 | | |
 | --- | --- |
 | ![Only the display you are looking at stays readable](docs/appstore/02-displays.png) | ![Walk away and it locks: the Settings window](docs/appstore/03-lock.png) |
-| ![The menu bar icon and menu](docs/appstore/04-menu.png) | ![First launch: the Status window says the one thing to do next](docs/appstore/05-setup.png) |
+| ![The menu bar icon and menu](docs/appstore/04-menu.png) | ![First launch: the Status window walks you through setup](docs/appstore/05-setup.png) |
 | ![The Status window while everything works](docs/appstore/06-status.png) | ![When the AirPods go quiet it says so and never locks](docs/appstore/07-honest.png) |
 
 These are the store-size (2880×1800) images in `docs/appstore/`. The windows and menu in them
@@ -73,13 +77,14 @@ xattr -dr com.apple.quarantine /Applications/PrivacyPods.app
 | Screen Recording | Capture each display so the overlay has something to blur | No blurred capture. The display is still covered, but blind: dark glass with one line saying why, never the live screen. The Status window shows it, and so does the menu while a display is blind |
 | Input Monitoring | Notice typing, so anchors set themselves while you work | Only pointer events get through: anchoring leans on the pointer and the re-anchor shortcut, and typing no longer resets the away timers, so you can be locked while typing with the AirPods out. Granting it mid-session takes effect within about five seconds, with no relaunch |
 | Bluetooth | Check how far away the AirPods are, to back up walk-away detection | Walking away is judged from head motion and input alone. macOS asks once the AirPods are first worn, which is when proximity starts |
+| Notifications | Say, once a launch, that the AirPods went quiet and your screens are readable | Only the menu bar icon changes. macOS asks the first time PrivacyPods has one to show, never before |
 
-All four are shown in the Status window, which opens by itself on first launch (and again
+The first four are shown in the Status window, which opens by itself on first launch (and again
 whenever Motion has been refused), with live status for each one and a button through to the
 right System Settings pane. Motion and Bluetooth are asked by macOS when their sensor first
-starts. Until Screen Recording or Input Monitoring has been asked, the menu lists it under the
-status line as a setup step once Motion is allowed (first run asks only for what gets head
-tracking going); clicking it asks straight away, with Status opening behind. Once
+starts. Screen Recording and Input Monitoring wait until Motion is allowed (first run asks only
+for what gets head tracking going); then the Status window lists them, and so does the menu,
+under the status line, where clicking one asks straight away with Status opening behind. Once
 you decline either, only the Status window shows it (and the menu, while a display is covered
 blind). See `docs/PERMISSIONS.md` for the detail on
 each one, including the Motion TCC trap.
@@ -112,7 +117,9 @@ If the anchor for a display is wrong, put the pointer on it, look at it, and pre
 are dropped on every lock and pause, so after an unlock a display you have not typed on yet is
 unanchored; looking at it reads as looking away. The menu then says "Looking away, or at a display
 not yet anchored", "Anchor This Display" in the menu anchors the display whose menu bar you clicked, and only the unanchored display's sheet says how to anchor it. The
-Status window shows each display's anchor and whether your head is in its range right now.
+Status window shows each display's anchor and whether your head is in its range right now. A
+display that overlaps the one you are looking at, or has no anchor yet, gets a line under it
+saying what to do.
 
 ## Settings
 
@@ -121,7 +128,7 @@ Settings are grouped by what they decide. The names below are the ones in the wi
 | Section | Setting | Default | Notes |
 | --- | --- | --- | --- |
 | Blur | Mode | When you look away | Or displays you're not looking at, or off. Also in the menu |
-| Blur | If head data stops | Stay readable | Or blur. Covers the screens while the AirPods send nothing; a sensor gap never locks |
+| Blur | If head data stops | Asked on first run | Stay readable or Blur, with neither picked for you; until you choose, screens stay readable. Blur covers the screens while the AirPods send nothing; a sensor gap never locks. While it is Stay readable, the first gap of each launch is a notification |
 | Blur | Strength | Middle | A slider from Light to Heavy |
 | When you walk away | Response | Blur, then lock | Or lock immediately, or do nothing |
 | When you walk away | Blur after, Lock after | 5 seconds, 30 seconds | Presets from 5 seconds to 10 minutes, both counted from when you leave. Lock is always later than blur |
@@ -162,9 +169,17 @@ within three seconds, the menu says so while you are away and keeps a "Review Fa
 display-sleep fallback only locks when Require password is set to Immediately), links to Lock
 Screen settings, has Lock Now to Test, and lets you dismiss it.
 
-The first Status window also offers Launch at login: a privacy tool that is not running after a
-restart protects nothing. Clicking a permission line in the menu asks for it
-straight away, with the Status window behind the prompt.
+On first launch the Status window walks through setup, each step waiting for the one before it:
+connect your AirPods (macOS then asks for Motion), choose what happens if they go quiet, and
+test the lock. The lock step only appears when walking away locks. Until you answer the second
+step, the menu lists "Choose What Happens If Head Data Stops…" with the other setup steps. The
+same window offers Launch
+at login: a privacy tool that is not running after a restart protects nothing. Once setup is
+done it stays done; a lock that fails later shows in the Lock section instead. Clicking a
+permission line in the menu asks for it straight away, with the Status window behind the prompt.
+
+The menu leads with the status line, then what it costs the screens and the next step, if there
+is one, in plain text under it. PrivacyPods Help opens this README.
 
 ## Building
 

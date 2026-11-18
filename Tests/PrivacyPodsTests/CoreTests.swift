@@ -66,4 +66,26 @@ struct CoreTests {
 
         #expect(clock.now.timeIntervalSince(start) == 90)
     }
+
+    @Test("First-run setup asks new installs and leaves existing ones alone")
+    func setupFlagsSurviveUpgrades() throws {
+        #expect(!AppSettings().failModeChosen)
+        #expect(!AppSettings().setupFinished)
+
+        // Settings stored by a build that had no setup: that owner is past it.
+        let old = Data(#"{"failMode":"closed","lockTested":false}"#.utf8)
+        let upgraded = try JSONDecoder().decode(AppSettings.self, from: old)
+        #expect(upgraded.failModeChosen)
+        #expect(upgraded.setupFinished)
+        #expect(upgraded.failMode == .closed)
+
+        var settings = AppSettings()
+        settings.choose(failMode: .open)
+        #expect(settings.failModeChosen)
+        // The lock still has its test to come.
+        #expect(!settings.hasDoneSetupSteps)
+        // Unless walking away never locks: then there is nothing to test.
+        settings.awayPolicy = .doNothing
+        #expect(settings.hasDoneSetupSteps)
+    }
 }
