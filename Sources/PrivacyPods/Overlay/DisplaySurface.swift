@@ -77,11 +77,12 @@ final class DisplaySurface {
     private func fade(to alpha: CGFloat, then completion: @escaping @MainActor @Sendable () -> Void = {}) {
         // AppKit runs the completion on the main thread but types it as non-isolated.
         let onFinish: @Sendable () -> Void = { MainActor.assumeIsolated { completion() } }
-        NSAnimationContext.runAnimationGroup({ context in
-            // A whole display changing opacity is the motion Reduce Motion exists for.
-            context.duration = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : Self.fadeDuration
-            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            self.window.animator().alphaValue = alpha
-        }, completionHandler: onFinish)
+        NSAnimationContext.runAnimationGroup(
+            { context in
+                // A whole display changing opacity is the motion Reduce Motion exists for.
+                context.duration = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : Self.fadeDuration
+                context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                self.window.animator().alphaValue = alpha
+            }, completionHandler: onFinish)
     }
 }

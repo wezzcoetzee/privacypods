@@ -74,8 +74,9 @@ final class HeadphoneMotionTracker: HeadTrackingProviding {
         isProbingAuthorization = true
         defer { isProbingAuthorization = false }
 
-        let (firstSample, arrived) = AsyncStream.makeStream(of: Void.self,
-                                                           bufferingPolicy: .bufferingNewest(1))
+        let (firstSample, arrived) = AsyncStream.makeStream(
+            of: Void.self,
+            bufferingPolicy: .bufferingNewest(1))
         manager.startDeviceMotionUpdates(to: queue) { @Sendable _, _ in arrived.yield(()) }
         let timeout = Task {
             try? await Task.sleep(for: Self.authorizationProbeTimeout)
@@ -189,9 +190,11 @@ final class HeadphoneMotionTracker: HeadTrackingProviding {
         apply(connected ? .headphonesConnected : .headphonesDisconnected)
     }
 
-    private func motionFailed(_ failure: WearStateMachine.Failure,
-                              _ description: String,
-                              generation: Int) {
+    private func motionFailed(
+        _ failure: WearStateMachine.Failure,
+        _ description: String,
+        generation: Int
+    ) {
         guard isCurrent(generation) else { return }
         Log.headTracking.error("Head motion updates failed: \(description, privacy: .public)")
 
@@ -234,8 +237,9 @@ private extension MotionSample {
     init(_ motion: CMDeviceMotion, arrivedAt: Date) {
         let acceleration = motion.userAcceleration
         self.init(
-            pose: HeadPose(yaw: Degrees(radians: motion.attitude.yaw),
-                           pitch: Degrees(radians: motion.attitude.pitch)),
+            pose: HeadPose(
+                yaw: Degrees(radians: motion.attitude.yaw),
+                pitch: Degrees(radians: motion.attitude.pitch)),
             userAcceleration: Vector3(x: acceleration.x, y: acceleration.y, z: acceleration.z),
             timestamp: arrivedAt
         )
@@ -247,8 +251,10 @@ extension WearStateMachine.Failure {
     /// `authorizationStatus()`, and uses two different codes for it depending on which motion
     /// service refused. Everything else is the sensor being unavailable.
     init(_ error: any Error) {
-        let refusals: Set<UInt32> = [CMErrorNotAuthorized.rawValue,
-                                     CMErrorMotionActivityNotAuthorized.rawValue]
+        let refusals: Set<UInt32> = [
+            CMErrorNotAuthorized.rawValue,
+            CMErrorMotionActivityNotAuthorized.rawValue,
+        ]
         let error = error as NSError
         let refused = error.domain == CMErrorDomain && refusals.contains(UInt32(error.code))
         self = refused ? .notAuthorized : .unavailable

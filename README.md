@@ -203,7 +203,7 @@ For an installable build:
 
 The DMG is ad-hoc signed. TCC grants survive rebuilds because the bundle id does not change.
 
-Pull requests and pushes to `main` run the tests (and `swift format lint` when a `.swift-format` config exists) through the [shared macOS CI workflow](https://github.com/wezzcoetzee/.github/blob/main/.github/workflows/macos-ci.yml).
+Pull requests and pushes to `main` run `swift format lint --strict` and the tests through the [shared macOS CI workflow](https://github.com/wezzcoetzee/.github/blob/main/.github/workflows/macos-ci.yml). Run `swift format format -i -r .` to fix formatting before pushing.
 
 Pushing a `v*` tag runs the [shared macOS release workflow](https://github.com/wezzcoetzee/.github/blob/main/.github/workflows/macos-release.yml)
 on `macos-26`, installs XcodeGen, and publishes the DMG to a GitHub Release with generated notes.

@@ -40,7 +40,9 @@ struct StatusView: View {
         let issues = coordinator.issues
         // Until Motion is allowed only Motion matters: the optional permissions wait for head
         // tracking, the same rule the menu follows. During setup its first step says it instead.
-        let shownPermissions: [Permission] = statuses[.motion] == .granted ? Permission.allCases
+        let shownPermissions: [Permission] =
+            statuses[.motion] == .granted
+            ? Permission.allCases
             : isSettingUp ? [] : [.motion]
         // Floated to the top only while there is something to answer; a declined optional
         // permission is the user's answer and waits at the bottom with the rest.
@@ -59,8 +61,10 @@ struct StatusView: View {
             }
             // One place for the lock, whatever state it is in, live failure included. During
             // setup that place is its last step.
-            if !isSettingUp, coordinator.lockFailedAt != nil || issues.contains(.lockUntested)
-                || (coordinator.isLockTested && locks) {
+            if !isSettingUp,
+                coordinator.lockFailedAt != nil || issues.contains(.lockUntested)
+                    || (coordinator.isLockTested && locks)
+            {
                 lock
             }
             if !needsPermissions, !shownPermissions.isEmpty { permissions(shownPermissions) }
@@ -101,7 +105,7 @@ struct StatusView: View {
                 let toSetUp = issues.filter(\.isSetupStep).count
                 if toFix > 0 {
                     fixCount(toFix)
-                // During setup the numbered steps already say what is left.
+                    // During setup the numbered steps already say what is left.
                 } else if toSetUp > 0, !isSettingUp {
                     Text(toSetUp == 1 ? "1 setup step below." : "\(toSetUp) setup steps below.")
                 }
@@ -134,10 +138,13 @@ struct StatusView: View {
                     Button("Open System Settings…") { coordinator.request(.motion) }.fixedSize()
                 }
             } label: {
-                StepLabel(number: 1, title: "Connect your AirPods", detail: statuses[.motion] == .denied
-                    ? Permission.motion.rationale
-                    : ready ? nil
-                    : "AirPods Pro, AirPods (3rd generation or later), AirPods Max or Beats Fit Pro. macOS then asks to allow Motion.")
+                StepLabel(
+                    number: 1, title: "Connect your AirPods",
+                    detail: statuses[.motion] == .denied
+                        ? Permission.motion.rationale
+                        : ready
+                            ? nil
+                            : "AirPods Pro, AirPods (3rd generation or later), AirPods Max or Beats Fit Pro. macOS then asks to allow Motion.")
             }
             LabeledContent {
                 Picker("If they go quiet", selection: chosenFailMode) {
@@ -148,19 +155,26 @@ struct StatusView: View {
                 .fixedSize()
                 .disabled(!ready)
             } label: {
-                StepLabel(number: 2, title: "If they go quiet", detail: ready
-                    ? "Out, in the case, or taken by your iPhone. This never locks the Mac."
-                    : waiting)
+                StepLabel(
+                    number: 2, title: "If they go quiet",
+                    detail: ready
+                        ? "Out, in the case, or taken by your iPhone. This never locks the Mac."
+                        : waiting)
             }
             if locks {
                 LabeledContent {
                     if ready { lockState }
                     Button("Lock Now to Test", action: coordinator.lockNow).fixedSize().disabled(!ready)
                 } label: {
-                    StepLabel(number: 3, title: "Test the lock", detail: !ready ? waiting
-                        : coordinator.lockFailedAt != nil ? Issue.lockAdvice
-                        : coordinator.isLockTested ? nil
-                        : "PrivacyPods locks the screen when you walk away. Test it once now, so the first time is not when you have already gone.")
+                    StepLabel(
+                        number: 3, title: "Test the lock",
+                        detail: !ready
+                            ? waiting
+                            : coordinator.lockFailedAt != nil
+                                ? Issue.lockAdvice
+                                : coordinator.isLockTested
+                                    ? nil
+                                    : "PrivacyPods locks the screen when you walk away. Test it once now, so the first time is not when you have already gone.")
                 }
                 if coordinator.lockFailedAt != nil { lockRemedies.padding(.top, 8) }
             }
@@ -197,7 +211,8 @@ struct StatusView: View {
             }
             // A denied Screen Recording is already a row above; only a failed stream is news.
             if coordinator.captureAvailability == .unavailable(.captureFailed),
-               let notice = coordinator.captureAvailability.notice {
+                let notice = coordinator.captureAvailability.notice
+            {
                 HStack {
                     PaneNotice(text: notice)
                     Spacer()
@@ -217,11 +232,13 @@ struct StatusView: View {
                 Button("Lock Now to Test", action: coordinator.lockNow).fixedSize()
             }
             if failedAt != nil || !coordinator.isLockTested {
-                Text(failedAt != nil
-                    ? Issue.lockAdvice
-                    : "PrivacyPods locks the screen when you walk away. Test it once now, so the first time is not when you have already gone.")
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 8)
+                Text(
+                    failedAt != nil
+                        ? Issue.lockAdvice
+                        : "PrivacyPods locks the screen when you walk away. Test it once now, so the first time is not when you have already gone."
+                )
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 8)
                 lockRemedies.padding(.top, 8)
             }
         }
@@ -270,7 +287,9 @@ struct StatusView: View {
                 switch state {
                 case .overlapping:
                     HStack {
-                        PaneNotice(text: "\(display.name) overlaps the display you're looking at, so PrivacyPods can mix them up. Narrow Horizontal range to fix it.", tone: .info)
+                        PaneNotice(
+                            text: "\(display.name) overlaps the display you're looking at, so PrivacyPods can mix them up. Narrow Horizontal range to fix it.",
+                            tone: .info)
                         Spacer()
                         Button("Open Settings…", action: openSettings).fixedSize()
                     }
@@ -419,10 +438,12 @@ private struct PermissionRow: View {
                 // The why only where there is something to decide, and where to find it in
                 // System Settings only once that is where the button goes.
                 if status != .granted, request != nil {
-                    Text([permission.rationale, status == .denied ? permission.systemSettingsNote : nil]
-                        .compactMap { $0 }.joined(separator: " "))
-                        .font(.caption)
-                        .fixedSize(horizontal: false, vertical: true)
+                    Text(
+                        [permission.rationale, status == .denied ? permission.systemSettingsNote : nil]
+                            .compactMap { $0 }.joined(separator: " ")
+                    )
+                    .font(.caption)
+                    .fixedSize(horizontal: false, vertical: true)
                 }
             }
         }

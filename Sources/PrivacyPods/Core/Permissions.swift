@@ -40,12 +40,13 @@ enum Permission: String, Hashable, Sendable, CaseIterable, Identifiable {
 
     /// The System Settings pane to open when the permission cannot be prompted for in-process.
     var settingsURL: URL {
-        let anchor = switch self {
-        case .motion: "Privacy_Motion"
-        case .screenRecording: "Privacy_ScreenCapture"
-        case .inputMonitoring: "Privacy_ListenEvent"
-        case .bluetooth: "Privacy_Bluetooth"
-        }
+        let anchor =
+            switch self {
+            case .motion: "Privacy_Motion"
+            case .screenRecording: "Privacy_ScreenCapture"
+            case .inputMonitoring: "Privacy_ListenEvent"
+            case .bluetooth: "Privacy_Bluetooth"
+            }
         return URL(string: "x-apple.systempreferences:com.apple.preference.security?\(anchor)")!
     }
 }

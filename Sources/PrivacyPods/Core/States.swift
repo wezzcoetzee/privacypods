@@ -76,8 +76,10 @@ enum CaptureAvailability: Hashable, Sendable {
     var notice: String? {
         switch self {
         case .available: nil
-        case .unavailable(.screenRecordingDenied): "This display is dark because Screen Recording is off. To blur it instead, choose Allow Screen Recording… in the PrivacyPods menu."
-        case .unavailable(.captureFailed): "PrivacyPods cannot capture this display, so it stays covered. To try again, choose Retry Display Capture in the PrivacyPods menu."
+        case .unavailable(.screenRecordingDenied):
+            "This display is dark because Screen Recording is off. To blur it instead, choose Allow Screen Recording… in the PrivacyPods menu."
+        case .unavailable(.captureFailed):
+            "PrivacyPods cannot capture this display, so it stays covered. To try again, choose Retry Display Capture in the PrivacyPods menu."
         }
     }
 }

@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import PrivacyPods
 
 /// A classifier plus the clock its sample timestamps are measured against. Samples move the
@@ -23,11 +24,13 @@ private final class Session {
     /// Delivers a sample `offset` seconds into the session. Offsets only ever move forwards.
     func sample(yaw: Double = 0, pitch: Double = 0, at offset: TimeInterval) {
         advance(by: offset - elapsed)
-        classifier.ingest(.sample(MotionSample(
-            pose: HeadPose(yaw: Degrees(yaw), pitch: Degrees(pitch)),
-            userAcceleration: .zero,
-            timestamp: Session.start.addingTimeInterval(offset)
-        )))
+        classifier.ingest(
+            .sample(
+                MotionSample(
+                    pose: HeadPose(yaw: Degrees(yaw), pitch: Degrees(pitch)),
+                    userAcceleration: .zero,
+                    timestamp: Session.start.addingTimeInterval(offset)
+                )))
     }
 
     /// Time passing with no sample, which is what a silent stream looks like before the head

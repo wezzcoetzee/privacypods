@@ -20,8 +20,9 @@ func symbol(_ name: String, pt: CGFloat, weight: NSFont.Weight = .semibold, colo
 
 func draw(_ s: NSImage, x: CGFloat, y: CGFloat, alpha: CGFloat = 1) {
     let sz = s.size
-    s.draw(in: CGRect(x: x - sz.width / 2, y: y - sz.height / 2, width: sz.width, height: sz.height),
-           from: .zero, operation: .sourceOver, fraction: alpha)
+    s.draw(
+        in: CGRect(x: x - sz.width / 2, y: y - sz.height / 2, width: sz.width, height: sz.height),
+        from: .zero, operation: .sourceOver, fraction: alpha)
 }
 
 /// Renders `body` into an offscreen 1024 px bitmap and gaussian-blurs it, so a glyph can be shown
@@ -29,9 +30,12 @@ func draw(_ s: NSImage, x: CGFloat, y: CGFloat, alpha: CGFloat = 1) {
 /// pick up the display's 2x scale and the blur radius would land at half the intended size.
 func blurred(radius: Double, _ body: () -> Void) -> NSImage {
     let px = Int(size)
-    guard let bitmap = CGContext(data: nil, width: px, height: px, bitsPerComponent: 8, bytesPerRow: 0,
-                                 space: CGColorSpace(name: CGColorSpace.sRGB)!,
-                                 bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { fatalError("bitmap") }
+    guard
+        let bitmap = CGContext(
+            data: nil, width: px, height: px, bitsPerComponent: 8, bytesPerRow: 0,
+            space: CGColorSpace(name: CGColorSpace.sRGB)!,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+    else { fatalError("bitmap") }
     NSGraphicsContext.saveGraphicsState()
     NSGraphicsContext.current = NSGraphicsContext(cgContext: bitmap, flipped: false)
     body()
@@ -43,7 +47,8 @@ func blurred(radius: Double, _ body: () -> Void) -> NSImage {
     filter.radius = Float(radius)
     let extent = CGRect(x: 0, y: 0, width: size, height: size)
     guard let output = filter.outputImage,
-          let result = CIContext().createCGImage(output, from: extent) else { fatalError("blur output") }
+        let result = CIContext().createCGImage(output, from: extent)
+    else { fatalError("blur output") }
     return NSImage(cgImage: result, size: NSSize(width: size, height: size))
 }
 
@@ -74,5 +79,6 @@ ctx.restoreGState()
 img.unlockFocus()
 
 guard let tiff = img.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
-      let png = rep.representation(using: .png, properties: [:]) else { fatalError("encode") }
+    let png = rep.representation(using: .png, properties: [:])
+else { fatalError("encode") }
 try! png.write(to: URL(fileURLWithPath: out))

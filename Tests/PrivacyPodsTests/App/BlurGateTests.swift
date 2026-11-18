@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import PrivacyPods
 
 /// The gates the coordinator puts above `BlurMode.displaysToBlur`. The mode matrix itself is
@@ -14,14 +15,16 @@ struct BlurGateTests {
     func gatesBeatEverything() {
         var settings = AppSettings()
 
-        #expect(AppCoordinator.blurredDisplays(
-            settings: settings, gaze: .away, allDisplays: all, awayResponse: .lock, isLocked: true
-        ).isEmpty)
+        #expect(
+            AppCoordinator.blurredDisplays(
+                settings: settings, gaze: .away, allDisplays: all, awayResponse: .lock, isLocked: true
+            ).isEmpty)
 
         settings.isEnabled = false
-        #expect(AppCoordinator.blurredDisplays(
-            settings: settings, gaze: .away, allDisplays: all, awayResponse: .blur, isLocked: false
-        ).isEmpty)
+        #expect(
+            AppCoordinator.blurredDisplays(
+                settings: settings, gaze: .away, allDisplays: all, awayResponse: .blur, isLocked: false
+            ).isEmpty)
     }
 
     @Test("An away escalation covers every display whatever the blur mode says")
@@ -29,14 +32,16 @@ struct BlurGateTests {
         var settings = AppSettings()
         settings.blurMode = .unfocusedDisplays
 
-        #expect(AppCoordinator.blurredDisplays(
-            settings: settings, gaze: .looking(left), allDisplays: all, awayResponse: .blur, isLocked: false
-        ) == all)
+        #expect(
+            AppCoordinator.blurredDisplays(
+                settings: settings, gaze: .looking(left), allDisplays: all, awayResponse: .blur, isLocked: false
+            ) == all)
 
         settings.blurMode = .off
-        #expect(AppCoordinator.blurredDisplays(
-            settings: settings, gaze: .looking(left), allDisplays: all, awayResponse: .lock, isLocked: false
-        ) == all)
+        #expect(
+            AppCoordinator.blurredDisplays(
+                settings: settings, gaze: .looking(left), allDisplays: all, awayResponse: .lock, isLocked: false
+            ) == all)
     }
 
     @Test("The status reports the gates before the sensors")
@@ -45,8 +50,9 @@ struct BlurGateTests {
 
         #expect(status(isEnabled: false, presence: .present) == .paused(until: nil))
         #expect(status(presence: .away(since: away)) == .away)
-        #expect(status(wear: .unknown(.sampleGap), gaze: .unknown, presence: .unknown)
-            == .headTracking(.sampleGap, coversScreens: false))
+        #expect(
+            status(wear: .unknown(.sampleGap), gaze: .unknown, presence: .unknown)
+                == .headTracking(.sampleGap, coversScreens: false))
         #expect(status(gaze: .unknown, presence: .present) == .notAnchored(coversScreens: false))
         #expect(status(presence: .present) == .looking(display: "Built-in Display"))
     }
@@ -205,8 +211,10 @@ struct BlurGateTests {
 
     @Test("Head data stopping is news once a launch, and only while the screens are left readable")
     func headDataNoticeIsRare() {
-        func reason(from old: WearState = .worn, to new: WearState = .unknown(.sampleGap),
-                    posted: Bool = false, _ change: (inout AppSettings) -> Void = { _ in }) -> WearState.Reason? {
+        func reason(
+            from old: WearState = .worn, to new: WearState = .unknown(.sampleGap),
+            posted: Bool = false, _ change: (inout AppSettings) -> Void = { _ in }
+        ) -> WearState.Reason? {
             var settings = AppSettings()
             settings.choose(failMode: .open)
             change(&settings)
