@@ -4,7 +4,7 @@ import Foundation
 /// `RegisterEventHotKey`'s four-character owner tag, read back from the event so this monitor
 /// ignores hotkeys registered by anyone else. A `@convention(c)` callback can capture nothing,
 /// so it has to live out here.
-private let reanchorSignature: OSType = 0x5050_6F64 // 'PPod'
+private let reanchorSignature: OSType = 0x5050_6F64  // 'PPod'
 
 /// The global re-anchor hotkey.
 ///
@@ -40,19 +40,21 @@ final class ReanchorHotkeyMonitor {
 
         var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
         let context = Unmanaged.passUnretained(self).toOpaque()
-        let installed = InstallEventHandler(GetApplicationEventTarget(), { _, event, context in
-            guard let event, let context else { return OSStatus(eventNotHandledErr) }
-            var fired = EventHotKeyID()
-            let read = GetEventParameter(
-                event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID),
-                nil, MemoryLayout<EventHotKeyID>.size, nil, &fired
-            )
-            guard read == noErr, fired.signature == reanchorSignature else { return OSStatus(eventNotHandledErr) }
-            MainActor.assumeIsolated {
-                Unmanaged<ReanchorHotkeyMonitor>.fromOpaque(context).takeUnretainedValue().fire()
-            }
-            return noErr
-        }, 1, &spec, context, &handler)
+        let installed = InstallEventHandler(
+            GetApplicationEventTarget(),
+            { _, event, context in
+                guard let event, let context else { return OSStatus(eventNotHandledErr) }
+                var fired = EventHotKeyID()
+                let read = GetEventParameter(
+                    event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID),
+                    nil, MemoryLayout<EventHotKeyID>.size, nil, &fired
+                )
+                guard read == noErr, fired.signature == reanchorSignature else { return OSStatus(eventNotHandledErr) }
+                MainActor.assumeIsolated {
+                    Unmanaged<ReanchorHotkeyMonitor>.fromOpaque(context).takeUnretainedValue().fire()
+                }
+                return noErr
+            }, 1, &spec, context, &handler)
 
         guard installed == noErr else {
             Log.gaze.error("Could not install the re-anchor hotkey handler (\(installed))")

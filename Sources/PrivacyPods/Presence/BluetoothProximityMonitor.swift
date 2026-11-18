@@ -152,7 +152,7 @@ final class BluetoothProximityMonitor {
         let pnpInformation = IOBluetoothSDPUUID(uuid16: BluetoothSDPUUID16(kBluetoothSDPUUID16ServiceClassPnPInformation.rawValue))
         let vendorID = BluetoothSDPServiceAttributeID(kBluetoothSDPAttributeDeviceIdentifierVendorID.rawValue)
         guard let record = device.getServiceRecord(for: pnpInformation),
-              let vendor = record.getAttributeDataElement(vendorID)?.getNumberValue()
+            let vendor = record.getAttributeDataElement(vendorID)?.getNumberValue()
         else { return false }
         return vendor.intValue == Self.appleVendorID
     }
@@ -179,8 +179,8 @@ final class BluetoothProximityMonitor {
 
     private func currentTrend() -> ProximityTrend {
         guard readings.count >= 4,
-              let first = readings.first, let last = readings.last,
-              last.time.timeIntervalSince(first.time) >= configuration.trendWindow / 4
+            let first = readings.first, let last = readings.last,
+            last.time.timeIntervalSince(first.time) >= configuration.trendWindow / 4
         else { return .steady }
 
         let split = readings.count / 2
@@ -237,7 +237,8 @@ private enum SystemProfilerBluetooth {
 
         let wanted = normalize(address)
         let devices = report.controllers.flatMap { $0.connected ?? [] }.flatMap(\.values)
-        return devices
+        return
+            devices
             .first { $0.address.map(normalize) == wanted }
             .flatMap { $0.rssi }
             .flatMap(Int.init)

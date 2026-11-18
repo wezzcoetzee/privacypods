@@ -1,6 +1,7 @@
 import CoreMotion
 import Foundation
 import Testing
+
 @testable import PrivacyPods
 
 /// The one piece of CoreMotion bridging with a decision in it: which handler errors mean the
@@ -27,8 +28,9 @@ struct MotionFailureTests {
 
     @Test("A matching code from another domain is not a refusal")
     func foreignDomain() {
-        let error = NSError(domain: NSPOSIXErrorDomain,
-                            code: Int(CMErrorNotAuthorized.rawValue))
+        let error = NSError(
+            domain: NSPOSIXErrorDomain,
+            code: Int(CMErrorNotAuthorized.rawValue))
         #expect(WearStateMachine.Failure(error) == .unavailable)
     }
 }

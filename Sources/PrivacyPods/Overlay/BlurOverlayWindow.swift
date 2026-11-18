@@ -168,10 +168,12 @@ private final class OverlaySheet: NSView {
         noticeLabel.isHidden = notice == nil
         // The sheet can never take focus, so VoiceOver would otherwise never hear why it is there.
         if isNew, let notice {
-            NSAccessibility.post(element: NSApp as Any, notification: .announcementRequested, userInfo: [
-                .announcement: notice,
-                .priority: NSAccessibilityPriorityLevel.high.rawValue,
-            ])
+            NSAccessibility.post(
+                element: NSApp as Any, notification: .announcementRequested,
+                userInfo: [
+                    .announcement: notice,
+                    .priority: NSAccessibilityPriorityLevel.high.rawValue,
+                ])
         }
         scrimView.layer?.backgroundColor = (notice == nil ? Self.scrim : Self.noticeScrim).cgColor
     }

@@ -86,7 +86,8 @@ struct AcceptanceCone: Hashable, Sendable, Codable {
     /// candidates on this value rather than on raw degrees, so a tall narrow cone and a wide
     /// short one are judged on the same scale.
     func normalizedDistance(_ offset: HeadPose) -> Double {
-        max(offset.yaw.magnitude / max(yawHalfAngle.magnitude, .ulpOfOne),
+        max(
+            offset.yaw.magnitude / max(yawHalfAngle.magnitude, .ulpOfOne),
             offset.pitch.magnitude / max(pitchHalfAngle.magnitude, .ulpOfOne))
     }
 

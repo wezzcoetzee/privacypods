@@ -21,26 +21,32 @@ struct SettingsView: View {
                     .labelsHidden()
                     .fixedSize()
                 }
-                .help("When you look away: every display blurs while you are looking at none of them. Displays you're not looking at: every display except the one you are looking at stays blurred.")
+                .help(
+                    "When you look away: every display blurs while you are looking at none of them. Displays you're not looking at: every display except the one you are looking at stays blurred."
+                )
                 if settings.settings.blurMode == .off, settings.settings.awayPolicy != .doNothing {
                     Text("Walking away still blurs every display.")
                         .font(.callout)
                         .padding(.vertical, 7)
                 }
                 LabeledContent("If head data stops") {
-                    Picker("If head data stops", selection: Binding(
-                        get: { settings.settings.failMode },
-                        set: { settings.settings.choose(failMode: $0) }
-                    )) {
+                    Picker(
+                        "If head data stops",
+                        selection: Binding(
+                            get: { settings.settings.failMode },
+                            set: { settings.settings.choose(failMode: $0) }
+                        )
+                    ) {
                         ForEach(FailMode.allCases) { Text($0.title).tag($0) }
                     }
                     .labelsHidden()
                     .fixedSize()
                     .disabled(settings.settings.blurMode == .off)
                 }
-                .help(settings.settings.blurMode == .off
-                    ? "Blur is off, so there is nothing to cover."
-                    : "What the screens do while the AirPods send no head data: out, in the case, or taken by your iPhone. This never locks the Mac.")
+                .help(
+                    settings.settings.blurMode == .off
+                        ? "Blur is off, so there is nothing to cover."
+                        : "What the screens do while the AirPods send no head data: out, in the case, or taken by your iPhone. This never locks the Mac.")
 
                 LabeledContent("Strength") {
                     Text("Light").accessibilityHidden(true)
@@ -79,7 +85,10 @@ struct SettingsView: View {
             }
 
             PaneSection(title: "Tracking") {
-                PaneLead(text: "Each display is anchored to where your head points while you work on it. The ranges set how far you can turn or tilt away from that and still count as looking at it.")
+                PaneLead(
+                    text:
+                        "Each display is anchored to where your head points while you work on it. The ranges set how far you can turn or tilt away from that and still count as looking at it."
+                )
                 LabeledContent("Horizontal range") {
                     presetPicker("Horizontal range", degrees(\.yawHalfAngle), presets: Self.rangePresets) { "±\(Int($0))°" }
                 }
@@ -127,8 +136,9 @@ struct SettingsView: View {
     private static let gracePresets: [Double] = [0.3, 0.5, 0.7, 1, 1.5, 2, 3]
 
     private var strengthPercent: Int {
-        Int(((settings.settings.blurRadius - Self.strengthRange.lowerBound)
-            / (Self.strengthRange.upperBound - Self.strengthRange.lowerBound) * 100).rounded())
+        Int(
+            ((settings.settings.blurRadius - Self.strengthRange.lowerBound)
+                / (Self.strengthRange.upperBound - Self.strengthRange.lowerBound) * 100).rounded())
     }
 
     /// A pop-up of sensible values, as for the walk-away delays, plus the current value if it is
@@ -146,13 +156,16 @@ struct SettingsView: View {
     private func delayPicker(
         _ label: String, _ field: WritableKeyPath<AwayTimings, TimeInterval>, choices: [TimeInterval]
     ) -> some View {
-        Picker(label, selection: Binding(
-            get: { timings[keyPath: field] },
-            set: {
-                timings[keyPath: field] = $0
-                settings.settings.awayPolicy = .blurThenLock(blurAfter: timings.blurAfter, lockAfter: timings.lockAfter)
-            }
-        )) {
+        Picker(
+            label,
+            selection: Binding(
+                get: { timings[keyPath: field] },
+                set: {
+                    timings[keyPath: field] = $0
+                    settings.settings.awayPolicy = .blurThenLock(blurAfter: timings.blurAfter, lockAfter: timings.lockAfter)
+                }
+            )
+        ) {
             ForEach(choices, id: \.self) { Text(AwayTimings.label($0)).tag($0) }
         }
         .labelsHidden()
@@ -173,11 +186,12 @@ struct SettingsView: View {
                 }
             },
             set: { kind in
-                settings.settings.awayPolicy = switch kind {
-                case .doNothing: .doNothing
-                case .blurThenLock: .blurThenLock(blurAfter: timings.blurAfter, lockAfter: timings.lockAfter)
-                case .lockImmediately: .lockImmediately
-                }
+                settings.settings.awayPolicy =
+                    switch kind {
+                    case .doNothing: .doNothing
+                    case .blurThenLock: .blurThenLock(blurAfter: timings.blurAfter, lockAfter: timings.lockAfter)
+                    case .lockImmediately: .lockImmediately
+                    }
             }
         )
     }

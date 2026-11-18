@@ -41,7 +41,8 @@ struct GaitDetector {
 
     mutating func ingest(_ sample: MotionSample) {
         if let last = window.last,
-           sample.timestamp.timeIntervalSince(last.time) > configuration.maximumSampleGap {
+            sample.timestamp.timeIntervalSince(last.time) > configuration.maximumSampleGap
+        {
             reset()
         }
 
@@ -71,8 +72,8 @@ struct GaitDetector {
 
     private func windowShowsGait() -> Bool {
         guard let first = window.first, let last = window.last,
-              last.time.timeIntervalSince(first.time) >= configuration.window * 0.9,
-              window.count >= 8
+            last.time.timeIntervalSince(first.time) >= configuration.window * 0.9,
+            window.count >= 8
         else { return false }
 
         let times = window.map(\.time)

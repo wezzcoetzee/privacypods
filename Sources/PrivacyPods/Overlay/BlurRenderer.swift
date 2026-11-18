@@ -25,7 +25,8 @@ struct BlurRenderer: Sendable {
     /// which would otherwise draw a dark frame around the display.
     func blur(_ frame: CVPixelBuffer, sigma: Double) -> CGImage? {
         let source = CIImage(cvPixelBuffer: frame)
-        let blurred = source
+        let blurred =
+            source
             .clampedToExtent()
             .applyingGaussianBlur(sigma: sigma)
             .cropped(to: source.extent)

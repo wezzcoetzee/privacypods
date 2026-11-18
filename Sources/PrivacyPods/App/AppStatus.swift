@@ -126,7 +126,7 @@ enum AppStatus: Hashable, Sendable {
         case .protectionOff:
             "Turn on Blur, or a response for when you walk away, in Settings."
         case .lockFailed:
-            nil // The Lock section below says what to do, next to the buttons that do it.
+            nil  // The Lock section below says what to do, next to the buttons that do it.
         case .headTracking(.noHeadphonesConnected, _):
             "Connect AirPods Pro, AirPods (3rd generation or later), AirPods Max or Beats Fit Pro to this Mac and put them in."
         case .headTracking(.motionUnavailable, _):

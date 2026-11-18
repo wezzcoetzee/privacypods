@@ -2,6 +2,7 @@ import AppKit
 import CoreImage
 import Foundation
 import Testing
+
 @testable import PrivacyPods
 
 /// Renders every user-facing surface in a fixed set of states and writes PNGs, so UI changes can
@@ -110,36 +111,45 @@ private struct Scenario {
     var configure: (inout AppSettings) -> Void = { _ in }
 
     static let all: [Scenario] = [
-        Scenario(name: "first-run", surfaces: [.menu, .status],
-                 wear: .unknown(.noHeadphonesConnected), gaze: { _ in .unknown },
-                 presence: .unknown,
-                 permissions: [.motion: .notDetermined, .screenRecording: .notDetermined, .inputMonitoring: .notDetermined, .bluetooth: .notDetermined],
-                 anchored: false, pose: nil, lockTested: false),
+        Scenario(
+            name: "first-run", surfaces: [.menu, .status],
+            wear: .unknown(.noHeadphonesConnected), gaze: { _ in .unknown },
+            presence: .unknown,
+            permissions: [.motion: .notDetermined, .screenRecording: .notDetermined, .inputMonitoring: .notDetermined, .bluetooth: .notDetermined],
+            anchored: false, pose: nil, lockTested: false),
         // Past the first step of setup: connected, with the choice and the lock test still to do.
-        Scenario(name: "setup", surfaces: [.menu, .status],
-                 gaze: { _ in .unknown }, presence: .unknown,
-                 permissions: [.motion: .granted, .screenRecording: .notDetermined, .inputMonitoring: .notDetermined, .bluetooth: .notDetermined],
-                 anchored: false, lockTested: false),
+        Scenario(
+            name: "setup", surfaces: [.menu, .status],
+            gaze: { _ in .unknown }, presence: .unknown,
+            permissions: [.motion: .granted, .screenRecording: .notDetermined, .inputMonitoring: .notDetermined, .bluetooth: .notDetermined],
+            anchored: false, lockTested: false),
         Scenario(name: "tracking", surfaces: [.menu, .settings, .status]),
         Scenario(name: "not-anchored", surfaces: [.menu], gaze: { _ in .unknown }, anchored: false),
         Scenario(name: "looking-away", surfaces: [.menu], gaze: { _ in .away }),
         Scenario(name: "sample-gap", surfaces: [.menu], wear: .unknown(.sampleGap), gaze: { _ in .unknown }, pose: nil),
-        Scenario(name: "sample-gap-covered", surfaces: [.menu], wear: .unknown(.sampleGap), gaze: { _ in .unknown }, pose: nil,
-                 configure: { $0.failMode = .closed }),
-        Scenario(name: "paused-hour", surfaces: [.menu],
-                 configure: { $0.isEnabled = false; $0.resumeAt = Date().addingTimeInterval(3600) }),
-        Scenario(name: "lock-failed", surfaces: [.menu], gaze: { _ in .away },
-                 presence: .away(since: .distantPast), failsToLock: true,
-                 configure: { $0.awayPolicy = .lockImmediately }),
-        Scenario(name: "lock-failed-returned", surfaces: [.menu, .status],
-                 presence: .away(since: .distantPast), failsToLock: true, returned: true,
-                 configure: { $0.awayPolicy = .lockImmediately }),
+        Scenario(
+            name: "sample-gap-covered", surfaces: [.menu], wear: .unknown(.sampleGap), gaze: { _ in .unknown }, pose: nil,
+            configure: { $0.failMode = .closed }),
+        Scenario(
+            name: "paused-hour", surfaces: [.menu],
+            configure: {
+                $0.isEnabled = false; $0.resumeAt = Date().addingTimeInterval(3600)
+            }),
+        Scenario(
+            name: "lock-failed", surfaces: [.menu], gaze: { _ in .away },
+            presence: .away(since: .distantPast), failsToLock: true,
+            configure: { $0.awayPolicy = .lockImmediately }),
+        Scenario(
+            name: "lock-failed-returned", surfaces: [.menu, .status],
+            presence: .away(since: .distantPast), failsToLock: true, returned: true,
+            configure: { $0.awayPolicy = .lockImmediately }),
         Scenario(name: "disabled", surfaces: [.menu], configure: { $0.isEnabled = false }),
         Scenario(name: "unanchored-display", surfaces: [.menu, .status], gaze: { _ in .away }, onlyFirstAnchored: true),
-        Scenario(name: "degraded", surfaces: [.settings, .status],
-                 capture: .unavailable(.screenRecordingDenied),
-                 permissions: [.motion: .granted, .screenRecording: .denied, .inputMonitoring: .denied, .bluetooth: .granted],
-                 hotkeyTaken: true),
+        Scenario(
+            name: "degraded", surfaces: [.settings, .status],
+            capture: .unavailable(.screenRecordingDenied),
+            permissions: [.motion: .granted, .screenRecording: .denied, .inputMonitoring: .denied, .bluetooth: .granted],
+            hotkeyTaken: true),
     ]
 }
 
@@ -240,9 +250,11 @@ private final class World {
         let before = Set(NSApp.windows.map(ObjectIdentifier.init))
         open(windows)
         await settle(seconds: 0.8)
-        guard let window = NSApp.windows.first(where: {
-            !before.contains(ObjectIdentifier($0)) && $0.isVisible && $0.styleMask.contains(.titled)
-        }) else { return }
+        guard
+            let window = NSApp.windows.first(where: {
+                !before.contains(ObjectIdentifier($0)) && $0.isVisible && $0.styleMask.contains(.titled)
+            })
+        else { return }
         Screen.capture(window: window.windowNumber, to: url)
         window.close()
         await settle()

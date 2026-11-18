@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import PrivacyPods
 
 @Suite("Sustained input")
@@ -43,8 +44,10 @@ struct SustainedInputDetectorTests {
         // Three nudges spanning most of the window, but the pointer only moved for the 0.08 s
         // of each: measuring the span instead would call this sustained.
         let nudges: [(SustainedInputDetector.Kind, TimeInterval)] =
-            [(.pointer, 0), (.pointer, 0.08), (.pointer, 0.4),
-             (.pointer, 0.48), (.pointer, 0.8), (.pointer, 0.88)]
+            [
+                (.pointer, 0), (.pointer, 0.08), (.pointer, 0.4),
+                (.pointer, 0.48), (.pointer, 0.8), (.pointer, 0.88),
+            ]
         #expect(burstOffsets(nudges).isEmpty)
     }
 }

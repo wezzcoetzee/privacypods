@@ -595,12 +595,13 @@ final class AppCoordinator {
         guard case .unknown(let reason) = wearState else {
             return "Not anchored. " + AppStatus.anchoringAdvice(hotkey: hotkey, canType: canType)
         }
-        let fix = switch reason {
-        case .sampleGap: "Put them back in"
-        case .noHeadphonesConnected: "Connect them"
-        case .permissionDenied: "Choose Allow Motion… in the PrivacyPods menu"
-        case .motionUnavailable: "Choose Status… in the PrivacyPods menu and click Restart Head Tracking"
-        }
+        let fix =
+            switch reason {
+            case .sampleGap: "Put them back in"
+            case .noHeadphonesConnected: "Connect them"
+            case .permissionDenied: "Choose Allow Motion… in the PrivacyPods menu"
+            case .motionUnavailable: "Choose Status… in the PrivacyPods menu and click Restart Head Tracking"
+            }
         return "\(reason.title). \(fix), or choose Pause in the PrivacyPods menu."
     }
 
