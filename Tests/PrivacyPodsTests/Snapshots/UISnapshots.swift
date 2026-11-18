@@ -115,6 +115,11 @@ private struct Scenario {
                  presence: .unknown,
                  permissions: [.motion: .notDetermined, .screenRecording: .notDetermined, .inputMonitoring: .notDetermined, .bluetooth: .notDetermined],
                  anchored: false, pose: nil, lockTested: false),
+        // Past the first step of setup: connected, with the choice and the lock test still to do.
+        Scenario(name: "setup", surfaces: [.menu, .status],
+                 gaze: { _ in .unknown }, presence: .unknown,
+                 permissions: [.motion: .granted, .screenRecording: .notDetermined, .inputMonitoring: .notDetermined, .bluetooth: .notDetermined],
+                 anchored: false, lockTested: false),
         Scenario(name: "tracking", surfaces: [.menu, .settings, .status]),
         Scenario(name: "not-anchored", surfaces: [.menu], gaze: { _ in .unknown }, anchored: false),
         Scenario(name: "looking-away", surfaces: [.menu], gaze: { _ in .away }),
@@ -151,8 +156,11 @@ private final class World {
         let defaults = UserDefaults(suiteName: defaultsSuite)!
         var settings = AppSettings()
         settings.lockTested = scenario.lockTested
-        // Past setup, the first-run Launch at login offer has already been shown.
+        // Past setup, the first-run Launch at login offer has already been shown, and the
+        // head-data question has been answered.
         settings.launchAtLoginOffered = scenario.lockTested
+        settings.failModeChosen = scenario.lockTested
+        settings.setupFinished = scenario.lockTested
         scenario.configure(&settings)
         defaults.set(try! JSONEncoder().encode(settings), forKey: AppSettings.defaultsKey)
 

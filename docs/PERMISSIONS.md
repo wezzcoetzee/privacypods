@@ -2,8 +2,10 @@
 
 PrivacyPods asks for four TCC permissions (`Permission` in
 `Sources/PrivacyPods/Core/Permissions.swift`). Each is shown in the Status window with live status
-and a button through to the right System Settings pane when the OS will not prompt in-process.
-The ones PrivacyPods can ask for itself are also offered from the menu while unasked.
+and a button through to the right System Settings pane when the OS will not prompt in-process,
+once Motion is allowed: until then only Motion matters, and during first-run setup its first
+step says so instead. The ones PrivacyPods can ask for itself are also offered from the menu
+while unasked.
 
 None of these survive App Sandbox, which is why the app is not sandboxed and is not distributed
 through the App Store.
@@ -106,3 +108,16 @@ Settings therefore appears without relaunching. A Motion grant also restarts hea
 which had refused to start without it. `WindowController` drops a closed window instead of caching it, so the view
 and its polling loop die with the window rather than running forever behind a window nobody can
 see. Do not cache a status anywhere else.
+
+## Notifications
+
+**Why:** when the AirPods go quiet while "If head data stops" is Stay readable, protection ends
+and the only other sign is the menu bar icon. `HeadDataNotice` posts one notification per launch,
+the first time that happens, so someone working in public hears about it.
+
+**Requesting it:** `UNUserNotificationCenter.requestAuthorization` runs the first time there is
+a notification to show, never at launch, so first run asks for nothing it does not need. It is
+not a `Permission` and not in the Status window: declining it changes nothing else.
+
+**Without it:** no notification. The icon still changes, and the Status window and menu still
+say "Screens readable."

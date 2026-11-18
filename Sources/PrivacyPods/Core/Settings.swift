@@ -129,6 +129,12 @@ struct AppSettings: Hashable, Sendable, Codable {
     var lockTested: Bool = false
     /// Set once the first Status window has offered Launch at login, so it is offered once.
     var launchAtLoginOffered: Bool = false
+    /// Set once the owner has picked a `failMode`, rather than living with the default. First run
+    /// asks, with neither answer selected, because which way to fail is theirs to decide.
+    var failModeChosen: Bool = false
+    /// Set once first-run setup has been finished. Latched: a later failed lock clears
+    /// `lockTested`, but it does not send the owner back through setup.
+    var setupFinished: Bool = false
 
     /// The `UserDefaults` key the settings store reads and writes.
     static let defaultsKey = "dev.wesley.privacypods.settings"
@@ -138,6 +144,7 @@ extension AppSettings {
     enum CodingKeys: String, CodingKey {
         case isEnabled, resumeAt, blurMode, awayPolicy, failMode, acceptanceCone
         case awayGrace, reanchorHotkey, launchAtLogin, blurRadius, lockTested, launchAtLoginOffered
+        case failModeChosen, setupFinished
     }
 
     /// Decodes field by field so that adding a setting does not invalidate a user's stored
@@ -158,6 +165,22 @@ extension AppSettings {
         blurRadius = try container.decodeIfPresent(Double.self, forKey: .blurRadius) ?? fallback.blurRadius
         lockTested = try container.decodeIfPresent(Bool.self, forKey: .lockTested) ?? fallback.lockTested
         launchAtLoginOffered = try container.decodeIfPresent(Bool.self, forKey: .launchAtLoginOffered) ?? fallback.launchAtLoginOffered
+        // Stored settings without these keys come from a build that had no first-run setup. That
+        // owner is past it, so these count as done rather than sending them back through it.
+        failModeChosen = try container.decodeIfPresent(Bool.self, forKey: .failModeChosen) ?? true
+        setupFinished = try container.decodeIfPresent(Bool.self, forKey: .setupFinished) ?? true
+    }
+
+    /// Sets the fail mode as the owner's own answer, so first run stops asking for it.
+    mutating func choose(failMode: FailMode) {
+        self.failMode = failMode
+        failModeChosen = true
+    }
+
+    /// Whether every first-run step that is the owner's to do has been done. Connecting the
+    /// AirPods comes first, but the choice and the lock test can only follow it.
+    var hasDoneSetupSteps: Bool {
+        failModeChosen && (lockTested || awayPolicy == .doNothing)
     }
 }
 

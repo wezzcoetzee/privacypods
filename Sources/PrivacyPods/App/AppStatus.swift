@@ -15,7 +15,7 @@ enum AppStatus: Hashable, Sendable {
     case lockFailed
     case away
     /// No usable head data. `coversScreens` is "If head data stops: Blur" at work; otherwise
-    /// nothing is being protected, and the title says so.
+    /// nothing is being protected, and `effect` says so.
     case headTracking(WearState.Reason, coversScreens: Bool)
     /// Worn, but no display has an anchor to compare the head against yet.
     case notAnchored(coversScreens: Bool)
@@ -68,16 +68,39 @@ enum AppStatus: Hashable, Sendable {
         case .protectionOff: "Blur and lock are both off"
         case .lockFailed: "Could not lock the screen"
         case .away: "Away"
-        case .headTracking(let reason, let covers): "\(reason.title) (\(Self.gapEffect(covers)))"
-        case .notAnchored(let covers): "Not anchored (\(Self.gapEffect(covers)))"
+        case .headTracking(let reason, _): reason.title
+        case .notAnchored: "Not anchored"
         case .looking(let display): "Looking at \(display)"
         case .lookingAway(let unanchored): unanchored ? "Looking away, or at a display not yet anchored" : "Looking away"
         }
     }
 
-    private static func gapEffect(_ coversScreens: Bool) -> String {
-        // "Readable" rather than "not protecting": walking away can still blur and lock.
-        coversScreens ? "screens blurred" : "screens readable"
+    /// Whether the screens are covered while PrivacyPods cannot see you, for the statuses where
+    /// that is the open question; `nil` for the rest.
+    var coversScreensMeanwhile: Bool? {
+        switch self {
+        case .headTracking(_, let covers), .notAnchored(let covers): covers
+        default: nil
+        }
+    }
+
+    /// What the status costs the screens, said on its own line under the title. "Readable"
+    /// rather than "not protecting": walking away can still blur and lock.
+    var effect: String? {
+        coversScreensMeanwhile.map { $0 ? "Screens blurred." : "Screens readable." }
+    }
+
+    /// The title and its effect as one line, for VoiceOver and anywhere else they cannot be two.
+    var summary: String {
+        effect.map { "\(title). \($0)" } ?? title
+    }
+
+    /// Whether the next step is the anchoring advice, so nothing below it has to repeat it.
+    var isAboutAnchoring: Bool {
+        switch self {
+        case .notAnchored, .lookingAway(unanchoredDisplay: true): true
+        default: false
+        }
     }
 
     /// Off because the user said so, as opposed to off because something stopped working.
@@ -119,10 +142,12 @@ enum AppStatus: Hashable, Sendable {
         }
     }
 
-    /// How to anchor a display with whatever inputs actually work right now.
-    static func anchoringAdvice(hotkey: String?, canType: Bool) -> String {
+    /// How to anchor a display with whatever inputs actually work right now: any display, or
+    /// the one named.
+    static func anchoringAdvice(for display: String? = nil, hotkey: String?, canType: Bool) -> String {
         let input = canType ? "type" : "move the pointer around"
-        return "Put the pointer on a display, look at it, and \(input)"
+        let start = display.map { "To anchor \($0), put the pointer on it" } ?? "Put the pointer on a display"
+        return "\(start), look at it, and \(input)"
             + (hotkey.map { ", or press \($0)." } ?? ", or choose Anchor This Display in the PrivacyPods menu.")
     }
 }
@@ -180,6 +205,8 @@ enum Issue: Hashable, Sendable, Identifiable {
     /// The response to walking away locks, and no lock PrivacyPods started has been seen to work
     /// yet, so the first real absence would also be the first test.
     case lockUntested
+    /// First run has not had an answer to "If head data stops" yet.
+    case failModeUnchosen
     case permission(Permission)
     case captureFailed
     case hotkeyTaken(String)
@@ -202,6 +229,7 @@ enum Issue: Hashable, Sendable, Identifiable {
     static func current(
         lockFailedAt: Date?,
         lockUntested: Bool,
+        failModeUnchosen: Bool,
         permissions: (Permission) -> PermissionStatus,
         capture: CaptureAvailability,
         isCovering: Bool,
@@ -228,7 +256,9 @@ enum Issue: Hashable, Sendable, Identifiable {
         }
         if capture == .unavailable(.captureFailed) { issues.append(.captureFailed) }
         if !isHotkeyAvailable { issues.append(.hotkeyTaken(hotkey.label)) }
-        // Last: a setup step comes after everything that keeps the app from working.
+        // Last: a setup step comes after everything that keeps the app from working, in the
+        // order the Status window's steps take them.
+        if failModeUnchosen { issues.append(.failModeUnchosen) }
         if lockFailedAt == nil, lockUntested { issues.append(.lockUntested) }
         return issues
     }
@@ -239,6 +269,7 @@ enum Issue: Hashable, Sendable, Identifiable {
         case .lockFailed(let at): "Review Failed Lock (\(at.formatted(date: .omitted, time: .shortened)))…"
         case .permission(let permission): "Allow \(permission.title)…"
         case .lockUntested: "Test Screen Lock…"
+        case .failModeUnchosen: "Choose What Happens If Head Data Stops…"
         case .captureFailed: "Retry Display Capture"
         case .hotkeyTaken: "Change Re-anchor Shortcut…"
         }
@@ -261,8 +292,8 @@ enum Issue: Hashable, Sendable, Identifiable {
         switch self {
         case .permission(let permission): permission == .motion
         case .lockFailed, .captureFailed, .hotkeyTaken: true
-        // A setup step: listed until done, but it does not alarm.
-        case .lockUntested: false
+        // Setup steps: listed until done, but they do not alarm.
+        case .lockUntested, .failModeUnchosen: false
         }
     }
 }

@@ -4,7 +4,9 @@ import SwiftUI
 /// Is PrivacyPods working, and if not, what to do next? Leads with the same status line as the
 /// menu, its next step and a count of what needs fixing, then the displays, what the sensors
 /// report, the lock, and the permissions. Opens by itself on first launch, so it doubles as
-/// setup; until the AirPods are connected and Motion is allowed it shows only what can be done.
+/// setup: until setup is finished it walks through its steps (connect the AirPods, choose what
+/// happens if they go quiet, test the lock), each one waiting for the one before it, and the
+/// optional permissions wait until head tracking works.
 struct StatusView: View {
     let coordinator: AppCoordinator
     let openSettings: () -> Void
@@ -13,6 +15,8 @@ struct StatusView: View {
     /// Decided once when the window opens, so the row does not vanish under the pointer the
     /// moment it is switched on.
     @State private var offersLaunchAtLogin: Bool
+    /// Whether this window opened during setup, so it can say so once setup is finished in it.
+    @State private var openedDuringSetup: Bool
 
     init(coordinator: AppCoordinator, openSettings: @escaping () -> Void) {
         self.coordinator = coordinator
@@ -24,31 +28,42 @@ struct StatusView: View {
         // chose off is not asked again.
         let settings = coordinator.settings.settings
         _offersLaunchAtLogin = State(initialValue: !settings.launchAtLogin && !settings.launchAtLoginOffered)
+        _openedDuringSetup = State(initialValue: !settings.setupFinished)
     }
+
+    private var settings: AppSettings { coordinator.settings.settings }
+    private var isSettingUp: Bool { !settings.setupFinished }
+    /// Whether walking away can lock, so there is a lock to test at all.
+    private var locks: Bool { settings.awayPolicy != .doNothing }
 
     var body: some View {
         let issues = coordinator.issues
+        // Until Motion is allowed only Motion matters: the optional permissions wait for head
+        // tracking, the same rule the menu follows. During setup its first step says it instead.
+        let shownPermissions: [Permission] = statuses[.motion] == .granted ? Permission.allCases
+            : isSettingUp ? [] : [.motion]
         // Floated to the top only while there is something to answer; a declined optional
         // permission is the user's answer and waits at the bottom with the rest.
-        let needsPermissions = statuses.contains { permission, status in
-            status == .notDetermined || (permission == .motion && status != .granted)
+        let needsPermissions = shownPermissions.contains { permission in
+            let status = statuses[permission] ?? .notDetermined
+            return status == .notDetermined || (permission == .motion && status != .granted)
         }
-        // Displays and sensors have nothing to say before there is head data to say it about.
-        let canDiagnose = coordinator.wearState != .unknown(.noHeadphonesConnected)
-            && statuses[.motion] == .granted
         Pane(width: 520) {
             headline(issues: issues)
-            if needsPermissions { permissions }
-            if canDiagnose {
+            if isSettingUp { setupSteps }
+            if needsPermissions { permissions(shownPermissions) }
+            // Displays and sensors have nothing to say before there is head data to say it about.
+            if coordinator.isHeadTrackingReady {
                 displays
                 detection
             }
-            // One place for the lock, whatever state it is in, live failure included.
-            if coordinator.lockFailedAt != nil || issues.contains(.lockUntested)
-                || (coordinator.isLockTested && coordinator.settings.settings.awayPolicy != .doNothing) {
+            // One place for the lock, whatever state it is in, live failure included. During
+            // setup that place is its last step.
+            if !isSettingUp, coordinator.lockFailedAt != nil || issues.contains(.lockUntested)
+                || (coordinator.isLockTested && locks) {
                 lock
             }
-            if !needsPermissions { permissions }
+            if !needsPermissions, !shownPermissions.isEmpty { permissions(shownPermissions) }
             if offersLaunchAtLogin { startup }
         }
         .task { await pollPermissions() }
@@ -60,33 +75,118 @@ struct StatusView: View {
     // MARK: - Sections
 
     /// The status and its one next step. Each issue is said once, in its own section next to the
-    /// button that fixes it; the headline only counts them.
+    /// button that fixes it; the headline only counts them. Until the AirPods are connected for
+    /// the first time, there is no status worth leading with, so setup leads instead.
+    @ViewBuilder
     private func headline(issues: [Issue]) -> some View {
         let status = coordinator.status
-        return VStack(alignment: .leading, spacing: 6) {
-            Text(status.title)
-                .font(.system(size: 17, weight: .semibold))
-                .accessibilityAddTraits(.isHeader)
-            if let step = status.nextStep(hotkey: hotkey, canType: coordinator.canType) {
-                Text(step).fixedSize(horizontal: false, vertical: true)
-            }
-            let toFix = issues.filter { !$0.isSetupStep }.count
-            let toSetUp = issues.filter(\.isSetupStep).count
-            if toFix > 0 {
-                Text(toFix == 1 ? "1 thing to fix below." : "\(toFix) things to fix below.")
-                    .foregroundStyle(.orange)
-            } else if toSetUp > 0 {
-                Text(toSetUp == 1 ? "1 setup step below." : "\(toSetUp) setup steps below.")
+        let toFix = issues.filter { !$0.isSetupStep }.count
+        VStack(alignment: .leading, spacing: 6) {
+            if isSettingUp, !coordinator.isHeadTrackingReady {
+                Text("Set up PrivacyPods")
+                    .font(.system(size: 17, weight: .semibold))
+                    .accessibilityAddTraits(.isHeader)
+                Text(setupSummary(coversScreens: status.coversScreensMeanwhile)).fixedSize(horizontal: false, vertical: true)
+                // A refused Motion is orange in the first step; orange is always counted.
+                if toFix > 0 { fixCount(toFix) }
+            } else {
+                Text(status.title)
+                    .font(.system(size: 17, weight: .semibold))
+                    .accessibilityAddTraits(.isHeader)
+                if let effect = status.effect { Text(effect) }
+                if openedDuringSetup, !isSettingUp { Text("Setup is done.") }
+                if let step = status.nextStep(hotkey: hotkey, canType: coordinator.canType) {
+                    Text(step).fixedSize(horizontal: false, vertical: true)
+                }
+                let toSetUp = issues.filter(\.isSetupStep).count
+                if toFix > 0 {
+                    fixCount(toFix)
+                // During setup the numbered steps already say what is left.
+                } else if toSetUp > 0, !isSettingUp {
+                    Text(toSetUp == 1 ? "1 setup step below." : "\(toSetUp) setup steps below.")
+                }
             }
         }
     }
 
-    private var permissions: some View {
+    private func fixCount(_ count: Int) -> some View {
+        Text(count == 1 ? "1 thing to fix below." : "\(count) things to fix below.")
+            .foregroundStyle(.orange)
+    }
+
+    /// "Three steps. Until the first is done, screens stay readable." Nothing in setup changes
+    /// what the screens do until the AirPods are connected, so this stays true until then.
+    private func setupSummary(coversScreens: Bool?) -> String {
+        let count = locks ? "Three steps." : "Two steps."
+        guard let coversScreens else { return count }
+        return "\(count) Until the first is done, screens stay \(coversScreens ? "blurred" : "readable")."
+    }
+
+    /// Setup, one step per row, each waiting for the one before it: the choice and the lock test
+    /// mean nothing until there is head data.
+    private var setupSteps: some View {
+        let ready = coordinator.isHeadTrackingReady
+        let waiting = "Available once your AirPods are connected."
+        return PaneSection(title: "Steps") {
+            LabeledContent {
+                Text(connectionStep).foregroundStyle(statuses[.motion] == .denied ? .orange : .white)
+                if statuses[.motion] == .denied {
+                    Button("Open System Settings…") { coordinator.request(.motion) }.fixedSize()
+                }
+            } label: {
+                StepLabel(number: 1, title: "Connect your AirPods", detail: statuses[.motion] == .denied
+                    ? Permission.motion.rationale
+                    : ready ? nil
+                    : "AirPods Pro, AirPods (3rd generation or later), AirPods Max or Beats Fit Pro. macOS then asks to allow Motion.")
+            }
+            LabeledContent {
+                Picker("If they go quiet", selection: chosenFailMode) {
+                    ForEach(FailMode.allCases) { Text($0.title).tag(Optional($0)) }
+                }
+                .labelsHidden()
+                .pickerStyle(.segmented)
+                .fixedSize()
+                .disabled(!ready)
+            } label: {
+                StepLabel(number: 2, title: "If they go quiet", detail: ready
+                    ? "Out, in the case, or taken by your iPhone. This never locks the Mac."
+                    : waiting)
+            }
+            if locks {
+                LabeledContent {
+                    if ready { lockState }
+                    Button("Lock Now to Test", action: coordinator.lockNow).fixedSize().disabled(!ready)
+                } label: {
+                    StepLabel(number: 3, title: "Test the lock", detail: !ready ? waiting
+                        : coordinator.lockFailedAt != nil ? Issue.lockAdvice
+                        : coordinator.isLockTested ? nil
+                        : "PrivacyPods locks the screen when you walk away. Test it once now, so the first time is not when you have already gone.")
+                }
+                if coordinator.lockFailedAt != nil { lockRemedies.padding(.top, 8) }
+            }
+        }
+    }
+
+    private var connectionStep: String {
+        if statuses[.motion] == .denied { return "Motion not allowed" }
+        if coordinator.wearState == .unknown(.noHeadphonesConnected) { return "Waiting" }
+        return statuses[.motion] == .granted ? "Connected" : "Waiting for Motion"
+    }
+
+    /// The fail mode as setup shows it: no answer selected until the owner gives one.
+    private var chosenFailMode: Binding<FailMode?> {
+        Binding(
+            get: { settings.failModeChosen ? settings.failMode : nil },
+            set: { if let mode = $0 { coordinator.settings.settings.choose(failMode: mode) } }
+        )
+    }
+
+    private func permissions(_ shown: [Permission]) -> some View {
         PaneSection(title: "Permissions") {
             if statuses.values.allSatisfy({ $0 == .granted }) && statuses.count == Permission.allCases.count {
                 LabeledContent(Permission.allCases.map(\.title).formatted(.list(type: .and)), value: "All allowed")
             } else {
-                ForEach(Permission.allCases) { permission in
+                ForEach(shown) { permission in
                     PermissionRow(
                         permission: permission,
                         status: statuses[permission] ?? .notDetermined,
@@ -113,11 +213,7 @@ struct StatusView: View {
         let failedAt = coordinator.lockFailedAt
         return PaneSection(title: "Lock") {
             LabeledContent("Screen lock") {
-                if let failedAt {
-                    Text("Failed at \(failedAt.formatted(date: .omitted, time: .shortened))").foregroundStyle(.orange)
-                } else {
-                    Text(coordinator.isLockTested ? "Works" : "Not tested yet")
-                }
+                lockState
                 Button("Lock Now to Test", action: coordinator.lockNow).fixedSize()
             }
             if failedAt != nil || !coordinator.isLockTested {
@@ -126,13 +222,25 @@ struct StatusView: View {
                     : "PrivacyPods locks the screen when you walk away. Test it once now, so the first time is not when you have already gone.")
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 8)
-                HStack {
-                    Spacer()
-                    Button("Open Lock Screen Settings…") { NSWorkspace.shared.open(Self.lockScreenSettings) }
-                    if failedAt != nil { Button("Dismiss", action: coordinator.dismissLockFailure) }
-                }
-                .padding(.top, 8)
+                lockRemedies.padding(.top, 8)
             }
+        }
+    }
+
+    @ViewBuilder
+    private var lockState: some View {
+        if let failedAt = coordinator.lockFailedAt {
+            Text("Failed at \(failedAt.formatted(date: .omitted, time: .shortened))").foregroundStyle(.orange)
+        } else {
+            Text(coordinator.isLockTested ? "Works" : "Not tested yet")
+        }
+    }
+
+    private var lockRemedies: some View {
+        HStack {
+            Spacer()
+            Button("Open Lock Screen Settings…") { NSWorkspace.shared.open(Self.lockScreenSettings) }
+            if coordinator.lockFailedAt != nil { Button("Dismiss", action: coordinator.dismissLockFailure) }
         }
     }
 
@@ -149,13 +257,28 @@ struct StatusView: View {
         }
     }
 
+    /// Each display's anchor, and a line under any display that needs something: an overlap with
+    /// the one you are looking at, or no anchor yet when anchoring can work right now and the
+    /// headline is not already saying how.
     private var displays: some View {
-        PaneSection(title: "Displays") {
+        let explainsAnchoring = coordinator.canReanchor && !coordinator.status.isAboutAnchoring
+        return PaneSection(title: "Displays") {
             ForEach(coordinator.displays) { display in
-                LabeledContent(display.name, value: anchorDescription(for: display.id))
-                    .help(anchorDescription(for: display.id) == "Also in range"
-                        ? "This display's range overlaps the one you are looking at. If the wrong display wins, narrow Horizontal range in Settings."
-                        : anchorSource(for: display.id))
+                let state = anchorState(for: display.id)
+                LabeledContent(display.name, value: state.title)
+                    .help(anchorSource(for: display.id))
+                switch state {
+                case .overlapping:
+                    HStack {
+                        PaneNotice(text: "\(display.name) overlaps the display you're looking at, so PrivacyPods can mix them up. Narrow Horizontal range to fix it.", tone: .info)
+                        Spacer()
+                        Button("Open Settings…", action: openSettings).fixedSize()
+                    }
+                case .notAnchored where explainsAnchoring:
+                    PaneNotice(text: AppStatus.anchoringAdvice(for: display.name, hotkey: hotkey, canType: coordinator.canType), tone: .info)
+                default:
+                    EmptyView()
+                }
             }
             if !coordinator.isReanchorHotkeyAvailable {
                 HStack {
@@ -211,15 +334,30 @@ struct StatusView: View {
         }
     }
 
-    /// Which display wins, and whether the head is inside each one's range right now. Two
-    /// displays "in range" at once is the overlap the README warns about.
-    private func anchorDescription(for id: DisplayID) -> String {
-        guard let anchor = coordinator.gaze.anchors[id] else { return "Not anchored" }
-        if coordinator.gazeState == .looking(id) { return "Looking here" }
-        guard let pose = coordinator.displayPose else { return "Anchored" }
-        // In range while another display wins is the overlap the README warns about.
-        let inRange = coordinator.settings.settings.acceptanceCone.contains(pose.offset(from: anchor.pose))
-        return inRange ? (coordinator.gazeState.display == nil ? "In range" : "Also in range") : "Out of range"
+    private enum AnchorState {
+        case notAnchored, lookingHere, anchored, inRange, outOfRange
+        /// In range while another display wins: the overlap the README warns about.
+        case overlapping
+
+        var title: String {
+            switch self {
+            case .notAnchored: "Not anchored yet"
+            case .lookingHere: "Looking here"
+            case .anchored: "Anchored"
+            case .inRange: "In range"
+            case .outOfRange: "Out of range"
+            case .overlapping: "Overlapping"
+            }
+        }
+    }
+
+    /// Which display wins, and whether the head is inside each one's range right now.
+    private func anchorState(for id: DisplayID) -> AnchorState {
+        guard let anchor = coordinator.gaze.anchors[id] else { return .notAnchored }
+        if coordinator.gazeState == .looking(id) { return .lookingHere }
+        guard let pose = coordinator.displayPose else { return .anchored }
+        guard coordinator.settings.settings.acceptanceCone.contains(pose.offset(from: anchor.pose)) else { return .outOfRange }
+        return coordinator.gazeState.display == nil ? .inRange : .overlapping
     }
 
     private func anchorSource(for id: DisplayID) -> String {
@@ -228,6 +366,28 @@ struct StatusView: View {
         case .sustainedInput: "Anchored automatically, from typing or pointer movement."
         case nil: "Put the pointer on this display, look at it, and type or press the shortcut."
         }
+    }
+}
+
+/// A setup step's label: its number, what to do, and the one line that says how or why.
+private struct StepLabel: View {
+    let number: Int
+    let title: String
+    let detail: String?
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 0) {
+            Text("\(number)").monospacedDigit().frame(width: 18, alignment: .leading)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                if let detail {
+                    Text(detail)
+                        .font(.caption)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -256,9 +416,11 @@ private struct PermissionRow: View {
         } label: {
             VStack(alignment: .leading, spacing: 2) {
                 Text(permission.title)
-                // The why only where there is something to decide.
+                // The why only where there is something to decide, and where to find it in
+                // System Settings only once that is where the button goes.
                 if status != .granted, request != nil {
-                    Text(permission.rationale)
+                    Text([permission.rationale, status == .denied ? permission.systemSettingsNote : nil]
+                        .compactMap { $0 }.joined(separator: " "))
                         .font(.caption)
                         .fixedSize(horizontal: false, vertical: true)
                 }

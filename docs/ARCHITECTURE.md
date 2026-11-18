@@ -67,7 +67,7 @@ the first burst of typing after the user returns re-anchors it.
 | `Sources/PrivacyPods/Gaze` | 2 | Anchors, classification, grace window, input monitoring, re-anchor hotkey |
 | `Sources/PrivacyPods/Overlay` | 3 | Per-display blur windows, screen capture, blur pipeline, dark scrim |
 | `Sources/PrivacyPods/Presence` | 4 | Gait detection, proximity, away evidence, screen lock |
-| `Sources/PrivacyPods/App` | 5 | Entry point, engine, menu bar, settings, Status window, permissions |
+| `Sources/PrivacyPods/App` | 5 | Entry point, engine, menu bar, settings, Status window and first-run setup, permissions, the head-data notification |
 | `README.md`, `docs/` | 6 | User-facing documentation |
 
 `Sources/PrivacyPods/Core/README.md` is the contract. Read it before writing anything.

@@ -58,15 +58,39 @@ private struct PaneRowStyle: LabeledContentStyle {
     }
 }
 
-/// A one-line warning under a row, with the icon carrying the meaning as well as the colour.
+/// A line under a row, with the icon carrying the meaning as well as the colour. A warning is
+/// orange and is something the headline counts; information stays white, because orange means
+/// a thing to fix and nothing else.
 struct PaneNotice: View {
+    enum Tone {
+        case warning, info
+    }
+
+    let text: String
+    var tone: Tone = .warning
+
+    var body: some View {
+        Label(text, systemImage: tone == .warning ? "exclamationmark.triangle.fill" : "info.circle")
+            .foregroundStyle(tone == .warning ? Color.orange : .white)
+            .font(.callout)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.vertical, 7)
+    }
+}
+
+/// A sentence under a section title that says what the rows below it are about, laid out as a
+/// row of its own.
+struct PaneLead: View {
     let text: String
 
     var body: some View {
-        Label(text, systemImage: "exclamationmark.triangle.fill")
-            .foregroundStyle(.orange)
-            .font(.callout)
-            .padding(.vertical, 7)
+        VStack(alignment: .leading, spacing: 0) {
+            Text(text)
+                .font(.callout)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.vertical, 7)
+            Hairline()
+        }
     }
 }
 

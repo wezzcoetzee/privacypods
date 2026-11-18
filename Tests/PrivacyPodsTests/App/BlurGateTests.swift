@@ -84,10 +84,12 @@ struct BlurGateTests {
         let open = status(wear: .unknown(.noHeadphonesConnected), gaze: .unknown, presence: .unknown)
         let covered = status(wear: .unknown(.noHeadphonesConnected), gaze: .unknown, presence: .unknown, settings: closed)
 
-        #expect(open.title.contains("screens readable"))
+        #expect(open.effect == "Screens readable.")
         #expect(open.health == .inactive)
-        #expect(covered.title.contains("screens blurred"))
+        #expect(covered.effect == "Screens blurred.")
         #expect(covered.health == .protecting)
+        // The title says what is wrong; what it costs the screens is its own line.
+        #expect(open.title == covered.title)
     }
 
     @Test("The icon tells chosen-off, can't-see, covering and broken apart")
@@ -131,6 +133,7 @@ struct BlurGateTests {
         let issues = Issue.current(
             lockFailedAt: failedAt,
             lockUntested: true,
+            failModeUnchosen: false,
             permissions: { statuses[$0]! },
             capture: .unavailable(.captureFailed),
             isCovering: false,
@@ -142,15 +145,15 @@ struct BlurGateTests {
         // replaces the "untested" step.
         #expect(issues == [.lockFailed(at: failedAt), .captureFailed, .hotkeyTaken("⌃⌥⌘R")])
 
-        // Once head tracking can work, the optional permission is offered, and the lock test comes
-        // last: it is a setup step, not a fault.
+        // Once head tracking can work, the optional permission is offered, and the setup steps come
+        // last, in the order the Status window takes them: they are steps, not faults.
         var ready = statuses
         ready[.motion] = .granted
         let untested = Issue.current(
-            lockFailedAt: nil, lockUntested: true, permissions: { ready[$0]! },
+            lockFailedAt: nil, lockUntested: true, failModeUnchosen: true, permissions: { ready[$0]! },
             capture: .available, isCovering: false, isHotkeyAvailable: true, hotkey: .reanchorDefault
         )
-        #expect(untested == [.permission(.screenRecording), .lockUntested])
+        #expect(untested == [.permission(.screenRecording), .failModeUnchosen, .lockUntested])
         #expect(untested.allSatisfy { $0.isSetupStep })
     }
 
@@ -160,6 +163,7 @@ struct BlurGateTests {
             Issue.current(
                 lockFailedAt: nil,
                 lockUntested: false,
+                failModeUnchosen: false,
                 permissions: { $0 == .screenRecording ? .denied : .granted },
                 capture: .unavailable(.screenRecordingDenied),
                 isCovering: covering,
@@ -197,6 +201,30 @@ struct BlurGateTests {
         #expect(unanchored?.contains("not anchored") == true)
         // An away blur is read by whoever walked up, not by the owner.
         #expect(notice(.unknown, .unknown(.sampleGap), .blur) == nil)
+    }
+
+    @Test("Head data stopping is news once a launch, and only while the screens are left readable")
+    func headDataNoticeIsRare() {
+        func reason(from old: WearState = .worn, to new: WearState = .unknown(.sampleGap),
+                    posted: Bool = false, _ change: (inout AppSettings) -> Void = { _ in }) -> WearState.Reason? {
+            var settings = AppSettings()
+            settings.choose(failMode: .open)
+            change(&settings)
+            return HeadDataNotice.reasonToPost(from: old, to: new, settings: settings, alreadyPosted: posted)
+        }
+
+        #expect(reason() == .sampleGap)
+        #expect(reason(to: .unknown(.noHeadphonesConnected)) == .noHeadphonesConnected)
+        #expect(reason(posted: true) == nil)
+        // Launching without AirPods, or a refused Motion, is the Status window's to explain.
+        #expect(reason(from: .unknown(.noHeadphonesConnected)) == nil)
+        #expect(reason(to: .unknown(.permissionDenied)) == nil)
+        // Nothing to warn about when the gap covers the screens, or nothing would blur anyway.
+        #expect(reason { $0.failMode = .closed } == nil)
+        #expect(reason { $0.blurMode = .off } == nil)
+        #expect(reason { $0.isEnabled = false } == nil)
+        // Before the owner has answered, setup is the one asking.
+        #expect(reason { $0.failModeChosen = false } == nil)
     }
 
     private func status(

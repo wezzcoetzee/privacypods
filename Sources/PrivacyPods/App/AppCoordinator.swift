@@ -66,6 +66,9 @@ final class AppCoordinator {
     private(set) var coversView = false
     private var screenParametersObserver: (any NSObjectProtocol)?
     private var isTornDown = false
+    /// Whether this launch has already told the owner that head data stopped with the screens
+    /// left readable. Once is the news; every gap after it would be noise.
+    private var didPostHeadDataNotice = false
 
     private static let lockConfirmationDelay: Duration = .seconds(3)
     private static let menuGlanceDuration: Duration = .seconds(1)
@@ -224,12 +227,28 @@ final class AppCoordinator {
             // Offered once head tracking can work, so first run is only about getting there.
             lockUntested: !settings.settings.lockTested && settings.settings.awayPolicy != .doNothing
                 && permissions.status(of: .motion) == .granted,
+            failModeUnchosen: !settings.settings.failModeChosen && permissions.status(of: .motion) == .granted,
             permissions: permissions.status(of:),
             capture: captureAvailability,
             isCovering: isCovering,
             isHotkeyAvailable: isReanchorHotkeyAvailable,
             hotkey: settings.settings.reanchorHotkey
         )
+    }
+
+    /// Setup's first step: AirPods connected and Motion allowed, so there is head data to work
+    /// with. Until then the displays and sensors have nothing to report, and the other steps wait.
+    var isHeadTrackingReady: Bool {
+        wearState != .unknown(.noHeadphonesConnected) && permissions.status(of: .motion) == .granted
+    }
+
+    /// Latches first-run setup as finished once all of it is done: the AirPods have been
+    /// connected and the owner's own steps are done. Checked whenever either side can change.
+    /// The choice can also be made in Settings before the AirPods ever connect, so the owner's
+    /// steps alone are not enough.
+    private func finishSetupIfDone() {
+        guard !settings.settings.setupFinished, settings.settings.hasDoneSetupSteps, isHeadTrackingReady else { return }
+        settings.settings.setupFinished = true
     }
 
     /// Whether some attached display has no anchor, so looking at it cannot be told from looking
@@ -354,6 +373,8 @@ final class AppCoordinator {
         let old = appliedSettings
         appliedSettings = new
 
+        finishSetupIfDone()
+
         if new.acceptanceCone != old.acceptanceCone || new.awayGrace != old.awayGrace {
             gaze.update(cone: new.acceptanceCone, awayGrace: new.awayGrace)
         }
@@ -406,7 +427,14 @@ final class AppCoordinator {
         case .sample(let sample):
             publish(pose: sample.pose, at: sample.timestamp)
         case .wearState(let state):
+            if let reason = HeadDataNotice.reasonToPost(
+                from: wearState, to: state, settings: settings.settings, alreadyPosted: didPostHeadDataNotice
+            ) {
+                didPostHeadDataNotice = true
+                HeadDataNotice.post(reason)
+            }
             wearState = state
+            finishSetupIfDone()
             if !state.isWorn {
                 displayPose = nil
                 displayPoseUpdatedAt = nil

@@ -16,6 +16,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     /// an enabled one highlights under the pointer. The status line is neither a control nor a
     /// footnote, so it is a plain label.
     private let statusLabel = NSTextField(labelWithString: "")
+    private let detailLabel = NSTextField(wrappingLabelWithString: "")
+    private static let detailWidth: CGFloat = 260
     /// Issue lines and the lock retry go straight after the status line and change with state, so
     /// they are rebuilt on every refresh rather than toggled.
     private var transientItems: [NSMenuItem] = []
@@ -42,18 +44,21 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     }
 
     private func buildMenu() {
-        statusLabel.font = .systemFont(ofSize: NSFont.menuFont(ofSize: 0).pointSize, weight: .semibold)
+        let menuFontSize = NSFont.menuFont(ofSize: 0).pointSize
+        statusLabel.font = .systemFont(ofSize: menuFontSize, weight: .semibold)
         statusLabel.textColor = .labelColor
-        let container = NSView()
-        statusLabel.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(statusLabel)
-        NSLayoutConstraint.activate([
-            statusLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 16),
-            statusLabel.trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor, constant: -16),
-            statusLabel.topAnchor.constraint(equalTo: container.topAnchor, constant: 4),
-            statusLabel.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -4),
-        ])
-        statusLineItem.view = container
+        // What the status costs and what to do about it, read where people look rather than in a
+        // tooltip nobody hovers for. Wraps instead of widening the menu.
+        detailLabel.font = .menuFont(ofSize: menuFontSize)
+        detailLabel.textColor = .labelColor
+        detailLabel.maximumNumberOfLines = 0
+        detailLabel.preferredMaxLayoutWidth = Self.detailWidth
+        let stack = NSStackView(views: [statusLabel, detailLabel])
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 1
+        stack.edgeInsets = NSEdgeInsets(top: 4, left: 16, bottom: 4, right: 16)
+        statusLineItem.view = stack
         menu.addItem(statusLineItem)
         menu.addItem(.separator())
 
@@ -82,6 +87,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         menu.addItem(action("Status…", #selector(openStatus)))
         menu.addItem(action("Settings…", #selector(openSettings), key: ","))
         menu.addItem(action("About PrivacyPods", #selector(showAbout)))
+        menu.addItem(action("PrivacyPods Help", #selector(showHelp)))
         menu.addItem(.separator())
 
         let quit = NSMenuItem(title: "Quit PrivacyPods", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
@@ -115,11 +121,14 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         let settings = coordinator.settings.settings
 
         statusLabel.stringValue = status.title
-        statusLineItem.view?.setAccessibilityLabel(status.title)
-        statusLineItem.view?.toolTip = status.nextStep(
+        let nextStep = status.nextStep(
             hotkey: coordinator.isReanchorHotkeyAvailable ? settings.reanchorHotkey.label : nil,
             canType: coordinator.canType
         )
+        let detail = [status.effect, nextStep].compactMap { $0 }.joined(separator: " ")
+        detailLabel.stringValue = detail
+        detailLabel.isHidden = detail.isEmpty
+        statusLineItem.view?.setAccessibilityLabel(detail.isEmpty ? status.title : "\(status.title). \(detail)")
         statusLineItem.view?.frame.size = statusLineItem.view?.fittingSize ?? .zero
         rebuildTransientItems(status: status)
 
@@ -146,7 +155,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         let icon = StatusIcon(status: status, issues: issues, coversView: coordinator.coversView)
         // Spoken the same way the badge is shown, so VoiceOver and sight agree on severity.
         let issueNote = issues.contains(where: \.badgesIcon) ? ", needs attention" : ""
-        statusItem.button?.image = NSImage(systemSymbolName: icon.symbolName, accessibilityDescription: "PrivacyPods: \(status.title)\(issueNote)")
+        statusItem.button?.image = NSImage(systemSymbolName: icon.symbolName, accessibilityDescription: "PrivacyPods: \(status.summary)\(issueNote)")
         statusItem.button?.appearsDisabled = icon.isDimmed
     }
 
@@ -162,7 +171,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
                 item = action(issue.title, #selector(retryCapture))
             case .hotkeyTaken:
                 item = action(issue.title, #selector(openSettings))
-            case .lockFailed, .lockUntested:
+            case .lockFailed, .lockUntested, .failModeUnchosen:
                 item = action(issue.title, #selector(openStatus))
             }
             item.representedObject = issue
@@ -220,6 +229,14 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         NSApp.activate(ignoringOtherApps: true)
         NSApp.orderFrontStandardAboutPanel(nil)
     }
+
+    /// The README's supported headphones, iPhone caveat and known limitations, which between
+    /// them answer most "why isn't it working" questions.
+    @objc private func showHelp() {
+        NSWorkspace.shared.open(Self.helpURL)
+    }
+
+    private static let helpURL = URL(string: "https://github.com/wezzcoetzee/privacypods#supported-headphones")!
 
     @objc private func openStatus() {
         windows.showStatus()
