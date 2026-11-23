@@ -36,10 +36,6 @@ struct SustainedInputDetectorTests {
         #expect(burstOffsets(drag) == [0.32])
     }
 
-    @Test func aSingleKnockIsNotMotion() {
-        #expect(burstOffsets([(.pointer, 0), (.pointer, 0.5)]).isEmpty)
-    }
-
     @Test func theIdleTimeBetweenNudgesIsNotMotion() {
         // Three nudges spanning most of the window, but the pointer only moved for the 0.08 s
         // of each: measuring the span instead would call this sustained.

@@ -28,7 +28,7 @@ private final class Session {
             .sample(
                 MotionSample(
                     pose: HeadPose(yaw: Degrees(yaw), pitch: Degrees(pitch)),
-                    userAcceleration: .zero,
+                    userAcceleration: Vector3(x: 0, y: 0, z: 0),
                     timestamp: Session.start.addingTimeInterval(offset)
                 )))
     }

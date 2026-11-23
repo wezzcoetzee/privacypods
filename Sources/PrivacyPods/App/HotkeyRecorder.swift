@@ -1,11 +1,6 @@
 import AppKit
 import SwiftUI
 
-/// Records a global hotkey: click it, press the combination, done.
-///
-/// AppKit has no control for this and SwiftUI cannot see key events sent to another view, so
-/// the capture is an otherwise invisible `NSView` that takes first responder while recording
-/// and reads `keyDown` directly.
 struct HotkeyRecorder: View {
     @Binding var hotkey: Hotkey
 
@@ -20,19 +15,15 @@ struct HotkeyRecorder: View {
 }
 
 extension Hotkey {
-    /// Menu-style label, e.g. `⌃⌥⌘R`.
     var label: String { modifiers.symbols + Self.keyLabels[keyCode, default: "Key \(keyCode)"] }
 
-    /// The character an `NSMenuItem` needs to show this hotkey, or `nil` for keys a menu cannot
-    /// spell (function and arrow keys), which then simply go unshown.
     var keyEquivalent: String? {
         guard let key = Self.keyLabels[keyCode] else { return nil }
         if key == "Space" { return " " }
         return key.count == 1 && !"←→↓↑".contains(key) ? key.lowercased() : nil
     }
 
-    /// Virtual key codes are a fixed hardware map, not a character set: the label is what the
-    /// key is called, not what it types on the current layout.
+    /// Virtual key codes are a hardware map: labels name the key, not what it types on the current layout.
     private static let keyLabels: [UInt32: String] = [
         0x00: "A", 0x0B: "B", 0x08: "C", 0x02: "D", 0x0E: "E", 0x03: "F", 0x05: "G", 0x04: "H",
         0x22: "I", 0x26: "J", 0x28: "K", 0x25: "L", 0x2E: "M", 0x2D: "N", 0x1F: "O", 0x23: "P",
@@ -87,19 +78,15 @@ private struct KeyCapture: NSViewRepresentable {
     }
 }
 
-/// Invisible while idle; while it holds first responder it swallows one key combination.
 private final class CaptureView: NSView {
-    /// `nil` means the user cancelled, with Escape or by clicking elsewhere.
     var finished: ((Hotkey?) -> Void)?
 
-    /// `kVK_Escape`, spelled out rather than dragging Carbon into this module for one constant.
+    /// `kVK_Escape`, spelled out to avoid importing Carbon for one constant.
     private static let escapeKeyCode: UInt16 = 0x35
 
     override var acceptsFirstResponder: Bool { true }
 
-    /// A combination containing ⌘ is offered as a key equivalent before it is ever delivered as
-    /// a key press, so without this the window's own controls would eat half the hotkeys a user
-    /// might want to record.
+    /// A ⌘ combination arrives as `performKeyEquivalent` before `keyDown`, so it must be intercepted here.
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         guard window?.firstResponder === self else { return false }
         keyDown(with: event)
@@ -112,9 +99,7 @@ private final class CaptureView: NSView {
             finished?(nil)
             return
         }
-        // A global hotkey takes its key away from every other app on the Mac. Without ⌃ or ⌥ it
-        // would be a plain letter, a capital, or a standard ⌘ command like ⌘C. Keep listening
-        // rather than cancelling, so a stray keypress does not lose the user's place.
+        // Without ⌃ or ⌥ a global hotkey would steal plain letters and ⌘ commands; keep listening instead of cancelling.
         guard !modifiers.isDisjoint(with: [.control, .option]) else {
             NSSound.beep()
             return

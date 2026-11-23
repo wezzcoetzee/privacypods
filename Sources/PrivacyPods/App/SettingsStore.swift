@@ -2,9 +2,6 @@ import Foundation
 import Observation
 import ServiceManagement
 
-/// The persisted, observable copy of `AppSettings`. SwiftUI reads `settings` directly; anything
-/// that changes the struct goes through this store so persistence and the launch-at-login side
-/// effect happen exactly once, in one place.
 @MainActor
 @Observable
 final class SettingsStore {
@@ -23,8 +20,7 @@ final class SettingsStore {
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         settings = Self.load(from: defaults)
-        // The system is the source of truth for login items: the user can remove the app in
-        // System Settings, or a registration can fail, and the stored flag would then lie.
+        // The system owns login items: the user can remove the app in System Settings, or registration can fail.
         settings.launchAtLogin = SMAppService.mainApp.status == .enabled
     }
 

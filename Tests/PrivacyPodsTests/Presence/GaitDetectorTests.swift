@@ -22,7 +22,7 @@ struct GaitDetectorTests {
             let time = Double(step) / rate
             let value = bias + amplitude * sin(2 * .pi * cadence * time)
             return MotionSample(
-                pose: .zero,
+                pose: HeadPose(yaw: 0, pitch: 0),
                 userAcceleration: Vector3(x: 0.004, y: value, z: -0.003),
                 timestamp: origin.addingTimeInterval(time)
             )

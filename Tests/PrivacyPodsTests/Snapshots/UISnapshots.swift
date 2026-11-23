@@ -389,7 +389,7 @@ private final class FakeGaze: GazeClassifying {
 
     func ingest(_ event: HeadTrackingEvent) {}
     func anchor(_ display: DisplayID, source: DisplayAnchor.Source) {
-        anchors[display] = DisplayAnchor(display: display, pose: .zero, capturedAt: Date(), source: source)
+        anchors[display] = DisplayAnchor(display: display, pose: HeadPose(yaw: 0, pitch: 0), capturedAt: Date(), source: source)
     }
     func retainOnly(_ displays: Set<DisplayID>) {}
     func update(cone: AcceptanceCone, awayGrace: TimeInterval) {}

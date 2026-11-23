@@ -1,25 +1,20 @@
 import Foundation
 
-/// What the away policy wants done right now, as an edge rather than a level.
 enum AwayAction: Hashable, Sendable {
     case blur
     case lock
-    /// Undo whatever the policy did: the user is back, or the evidence evaporated.
+    /// Undo whatever the policy did.
     case clear
 }
 
-/// Turns a stream of `PresenceState` into the few actions the app should actually take.
-///
-/// Pure, so the escalation can be stepped in tests without waiting out a 30 second timer: the
-/// caller passes `now` and the runner returns an action only when the level changes. It never
-/// steps back down from `.lock` to `.blur` — once the screen is locked, the only way out is the
-/// user returning — and `.unknown` clears rather than escalates, because a sensor gap is not an
+/// Turns presence into actions, returning one only when the level changes. Never steps down from
+/// `.lock` to `.blur`, and `.unknown` clears rather than escalates because a sensor gap is not an
 /// absence.
 struct AwayPolicyRunner: Hashable, Sendable {
     var policy: AwayPolicy
     private(set) var response: AwayResponse = .idle
 
-    init(policy: AwayPolicy = .default) {
+    init(policy: AwayPolicy) {
         self.policy = policy
     }
 

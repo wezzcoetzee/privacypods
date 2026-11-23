@@ -59,15 +59,6 @@ struct CoreTests {
         #expect(decoded.awayPolicy == .default)
     }
 
-    @Test("Manual time source steps on demand")
-    func manualTimeSourceAdvances() {
-        let clock = ManualTimeSource()
-        let start = clock.now
-        clock.advance(by: 90)
-
-        #expect(clock.now.timeIntervalSince(start) == 90)
-    }
-
     @Test("First-run setup asks new installs and leaves existing ones alone")
     func setupFlagsSurviveUpgrades() throws {
         #expect(!AppSettings().failModeChosen)

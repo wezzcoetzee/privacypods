@@ -1,11 +1,7 @@
 import Foundation
 
-/// Combines head motion, gait, Bluetooth proximity, gaze and input into a `PresenceState`.
-///
-/// The engine is plumbing; the judgement lives in `AwayEvidence` and `GaitDetector`, which are
-/// pure and tested. Its own jobs are to own the gait detector and the proximity monitor, to tick
-/// once a second so that time-based evidence (an AirPods disconnect nobody has typed through)
-/// resolves without waiting for an event, and to publish state changes.
+/// Plumbing around `AwayEvidence` and `GaitDetector`. Ticks once a second so time-based evidence
+/// (a disconnect nobody has typed through) resolves without waiting for an event.
 @MainActor
 final class PresenceEngine: PresenceProviding {
     let events: AsyncStream<PresenceState>
@@ -18,27 +14,16 @@ final class PresenceEngine: PresenceProviding {
         }
     }
 
+    private static let tickInterval: Duration = .seconds(1)
+
     private let continuation: AsyncStream<PresenceState>.Continuation
-    private let timeSource: any TimeSource
-    private let proximity: BluetoothProximityMonitor
-    private let tickInterval: TimeInterval
-    private var gait: GaitDetector
-    private var evidence: AwayEvidence
+    private let proximity = BluetoothProximityMonitor()
+    private var gait = GaitDetector()
+    private var evidence = AwayEvidence()
     private var ticker: Task<Void, Never>?
 
-    init(
-        configuration: AwayEvidence.Configuration = .default,
-        gait: GaitDetector = GaitDetector(),
-        proximity: BluetoothProximityMonitor? = nil,
-        timeSource: any TimeSource = SystemTimeSource(),
-        tickInterval: TimeInterval = 1
-    ) {
+    init() {
         (events, continuation) = AsyncStream.makeStream()
-        self.evidence = AwayEvidence(configuration: configuration)
-        self.gait = gait
-        self.proximity = proximity ?? BluetoothProximityMonitor(timeSource: timeSource)
-        self.timeSource = timeSource
-        self.tickInterval = tickInterval
     }
 
     deinit {
@@ -47,21 +32,18 @@ final class PresenceEngine: PresenceProviding {
 
     func start() {
         guard ticker == nil else { return }
-        // Proximity starts with the first worn sample instead (see `ingest`): it only corroborates
-        // a walk-away from AirPods that were on, and listing paired devices raises the Bluetooth
-        // prompt, which should come when the AirPods connect rather than the moment the app opens.
+        // Proximity starts with the first worn sample instead (see `ingest`): listing paired
+        // devices raises the Bluetooth prompt, which should come when the AirPods connect.
         ticker = Task { [weak self] in
             while !Task.isCancelled {
-                guard let self else { return }
-                try? await Task.sleep(for: .seconds(self.tickInterval))
-                guard !Task.isCancelled else { return }
+                try? await Task.sleep(for: Self.tickInterval)
+                guard let self, !Task.isCancelled else { return }
                 self.evaluate()
             }
         }
     }
 
-    /// Stops and forgets everything. The app calls this on unlock, so a session that ended with
-    /// the user away does not colour the one that starts when they come back.
+    /// Forgets everything, so a session that ended with the user away does not colour the next.
     func stop() {
         ticker?.cancel()
         ticker = nil
@@ -76,7 +58,7 @@ final class PresenceEngine: PresenceProviding {
         case .sample(let sample):
             gait.ingest(sample)
         case .wearState(let wear):
-            evidence.observe(wear: wear, at: timeSource.now)
+            evidence.observe(wear: wear, at: Date())
             if !wear.isWorn { gait.reset() }
             if wear.isWorn, ticker != nil { proximity.start() }
         }
@@ -84,7 +66,6 @@ final class PresenceEngine: PresenceProviding {
     }
 
     func ingest(_ activity: InputActivity) {
-        // `.sustained` implies `.activity`; both mean a human touched the machine.
         evidence.observeInput(at: activity.timestamp)
         evaluate()
     }
@@ -97,6 +78,6 @@ final class PresenceEngine: PresenceProviding {
     private func evaluate() {
         evidence.isWalking = gait.isWalking
         evidence.proximity = proximity.trend
-        state = evidence.resolve(at: timeSource.now)
+        state = evidence.resolve(at: Date())
     }
 }

@@ -1,22 +1,12 @@
 import CoreGraphics
 import Foundation
 
-/// Locks the screen, and tracks whether it is already locked.
+/// Locks through `SACLockScreenImmediate` in the private `login.framework`: stable for a decade,
+/// what the lock-screen menu item calls, and still resolving on macOS 26.6. (`CGSession -suspend`
+/// is gone: `User.menu` no longer exists on macOS 26.)
 ///
-/// Locking goes through `SACLockScreenImmediate` in the private `login.framework`. It is private
-/// but has been stable for a decade and is what the lock-screen menu item itself calls; verified
-/// to still resolve by `dlsym` on macOS 26.6. The old `CGSession -suspend` fallback is gone
-/// rather than unused: `/System/Library/CoreServices/Menu Extras/User.menu` no longer exists on
-/// macOS 26, so that path could only ever have failed.
-///
-/// The fallback is `pmset displaysleepnow`, which needs no private symbol and no permission.
-/// **It sleeps the displays; it only locks if the user has "Require password after screen saver
-/// begins or display is turned off" set to immediately.** That caveat is why it is the fallback
-/// and not the primary, and why `lock()` reports whether anything took effect instead of
-/// returning silently.
-///
-/// The lock state matters as much as the lock: nothing should blur a screen that is already
-/// covered by the lock window, and the away timers have to be cleared on unlock.
+/// The fallback, `pmset displaysleepnow`, only sleeps the displays. It locks only if "Require
+/// password" is set to immediately, which is why `lock()` reports whether anything took effect.
 @MainActor
 final class ScreenLocker: ScreenLocking {
     private static let loginFrameworkPath =
@@ -45,16 +35,13 @@ final class ScreenLocker: ScreenLocking {
         continuation.finish()
     }
 
-    /// Locks the screen, reporting whether any mechanism took effect. `false` means the Mac is
-    /// still showing whatever it was showing, which is worth surfacing rather than swallowing.
-    @discardableResult
     func lock() -> Bool {
         if lockViaLoginFramework() { return true }
         Log.presence.error("Falling back to display sleep; this only locks if the password delay is immediate")
         return sleepDisplays()
     }
 
-    /// The observers live as long as the app does, so they are never removed.
+    /// Never removed: they live as long as the app.
     private func observe(_ name: String, locked: Bool) {
         DistributedNotificationCenter.default().addObserver(
             forName: Notification.Name(name),

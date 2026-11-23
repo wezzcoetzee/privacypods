@@ -132,8 +132,7 @@ sample callbacks, `system_profiler`), it hops back to the main actor before emit
 - **`TimeSource`** / **`SystemTimeSource`**: injected "now". Reach for it only where a type
   owns a timer it cannot hand to its caller. **Pure state machines should take `now: Date` as a
   parameter instead**, which is how the tested logic stays free of clocks.
-  `Tests/PrivacyPodsTests/Support/ManualTimeSource.swift` is the shared steppable fake; treat
-  that file as frozen so parallel test authors do not collide.
+  `Tests/PrivacyPodsTests/Support/ManualTimeSource.swift` is the shared steppable fake.
 
 ### Log.swift
 

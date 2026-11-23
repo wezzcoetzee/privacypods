@@ -1,14 +1,10 @@
 import SwiftUI
 
-/// Settings: what blurs, what happens when you leave, and the tracking that decides both.
-/// Pausing is not here; it is something you do, not something you set, and it lives in the menu.
 struct SettingsView: View {
-    /// Read for one thing: whether the shortcut chosen below actually registered.
     let coordinator: AppCoordinator
     @Bindable var settings: SettingsStore
 
-    /// The delays of "Blur, then lock", kept while another response is selected so switching
-    /// back does not throw the user's numbers away.
+    /// Kept while another response is selected so switching back preserves them.
     @State private var timings = AwayTimings()
 
     var body: some View {
@@ -141,8 +137,6 @@ struct SettingsView: View {
                 / (Self.strengthRange.upperBound - Self.strengthRange.lowerBound) * 100).rounded())
     }
 
-    /// A pop-up of sensible values, as for the walk-away delays, plus the current value if it is
-    /// a custom one carried over from an older build.
     private func presetPicker(
         _ label: String, _ binding: Binding<Double>, presets: [Double], format: @escaping (Double) -> String
     ) -> some View {
@@ -204,8 +198,6 @@ struct SettingsView: View {
     }
 }
 
-/// The two delays of "Blur, then lock", offered as presets in the way macOS offers its own
-/// "require password after" delays, rather than as a stepper that takes hundreds of clicks.
 struct AwayTimings: Hashable {
     var blurAfter: TimeInterval = 5
     var lockAfter: TimeInterval = 30

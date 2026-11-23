@@ -13,8 +13,6 @@ enum PrivacyPodsMain {
     }
 }
 
-/// An accessory-policy application: no dock icon and no visible main menu. Its windows open from
-/// the status item; Status also opens by itself on first launch and whenever Motion is missing.
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let settings = SettingsStore()
@@ -23,13 +21,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItemController: StatusItemController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // The test bundle is hosted inside the app. Starting the real sensors, overlay and
-        // hotkey there would watch the developer's screen and hold the hotkey the tests register.
+        // The test bundle is hosted inside the app; bail under XCTest so sensors, overlay and hotkey do not start.
         guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return }
         Log.app.info("PrivacyPods launched")
 
-        // A pause with no end does not outlive the app: a privacy tool that comes back from a
-        // restart switched off, behind an icon that is easy to miss, has failed its owner.
+        // A pause with no end does not outlive the app.
         if !settings.settings.isEnabled, settings.settings.resumeAt == nil {
             settings.settings.isEnabled = true
         }
@@ -52,9 +48,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         coordinator?.stop()
     }
 
-    /// Once on first launch, and after that only when Motion has been refused, since nothing works
-    /// without it. Everything else waits in the menu: a window pushed at every login is a window
-    /// people learn to close without reading.
     private func shouldOpenStatus(_ permissions: any PermissionAuditing) -> Bool {
         !UserDefaults.standard.bool(forKey: Self.statusShownKey)
             || [.denied, .unavailable].contains(permissions.status(of: .motion))
@@ -62,8 +55,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private static let statusShownKey = "dev.wesley.privacypods.statusShownOnce"
 
-    /// Never shown, since an accessory app has no menu bar of its own, but its key equivalents
-    /// still reach the key window: ⌘W closes Settings or Status and ⌘, opens Settings.
+    /// Hidden in an accessory app, but its key equivalents still reach the key window (⌘W, ⌘,).
     private func makeMainMenu() -> NSMenu {
         let appMenu = NSMenu()
         appMenu.addItem(withTitle: "Settings…", action: #selector(showSettings), keyEquivalent: ",").target = self
