@@ -7,8 +7,8 @@ import Testing
 struct WearStateMachineTests {
     private let start = Date(timeIntervalSince1970: 1_000_000)
 
-    private func running(gapTolerance: TimeInterval = 1.5) -> WearStateMachine {
-        var machine = WearStateMachine(gapTolerance: gapTolerance)
+    private func running() -> WearStateMachine {
+        var machine = WearStateMachine()
         _ = machine.apply(.started(authorization: .granted, headphonesAvailable: true), at: start)
         return machine
     }

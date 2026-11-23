@@ -1,53 +1,31 @@
 import Foundation
 
-/// Detects walking from the rhythm in head acceleration.
+/// Detects walking as a 1.5 to 2.5 Hz bounce in head acceleration.
 ///
-/// Walking shows up in the AirPods as a steady 1.5–2.5 Hz bounce. The detector keeps a short
-/// window of samples and asks, per axis: does this axis swing far enough to be motion rather
-/// than noise, and does it cross its own mean at a walking cadence?
-///
-/// Per axis rather than on the magnitude of `userAcceleration`, because the device frame is
-/// not aligned with the world — there is no axis that is reliably "vertical" — and taking the
-/// magnitude folds the signal about zero, which doubles its apparent frequency.
+/// Analysed per axis rather than on the magnitude: the device frame has no reliably vertical
+/// axis, and the magnitude folds the signal about zero, which doubles its apparent frequency.
 struct GaitDetector {
-    struct Configuration: Hashable, Sendable {
-        /// Steps per second that count as walking.
-        var cadence: ClosedRange<Double> = 1.5...2.5
-        /// Minimum RMS deviation, in g, before a rhythm is motion rather than sensor noise.
-        /// At rest the AirPods sit around ±0.01 g.
-        var minimumAmplitude: Double = 0.03
-        /// Both the analysis window and the "sustained for" requirement: the cadence has to hold
-        /// across the whole window before it reads as walking.
-        var window: TimeInterval = 2
-        /// Samples further apart than this mean the stream restarted, so the window is dropped
-        /// rather than joined across the gap.
-        var maximumSampleGap: TimeInterval = 0.5
-        /// How often the window is re-analysed. Samples arrive at ~50 Hz and the answer cannot
-        /// change meaningfully between two of them.
-        var evaluationInterval: TimeInterval = 0.25
+    private static let cadence: ClosedRange<Double> = 1.5...2.5
+    /// RMS deviation in g. At rest the AirPods sit around ±0.01 g.
+    private static let minimumAmplitude: Double = 0.03
+    /// Also how long the cadence must hold before it reads as walking.
+    private static let window: TimeInterval = 2
+    /// Samples further apart than this mean the stream restarted; the window is dropped, not joined.
+    private static let maximumSampleGap: TimeInterval = 0.5
+    private static let evaluationInterval: TimeInterval = 0.25
 
-        static let `default` = Configuration()
-    }
-
-    private let configuration: Configuration
     private var window: [(time: Date, acceleration: Vector3)] = []
     private var lastEvaluation: Date?
 
     private(set) var isWalking = false
 
-    init(configuration: Configuration = .default) {
-        self.configuration = configuration
-    }
-
     mutating func ingest(_ sample: MotionSample) {
-        if let last = window.last,
-            sample.timestamp.timeIntervalSince(last.time) > configuration.maximumSampleGap
-        {
+        if let last = window.last, sample.timestamp.timeIntervalSince(last.time) > Self.maximumSampleGap {
             reset()
         }
 
         window.append((sample.timestamp, sample.userAcceleration))
-        let cutoff = sample.timestamp.addingTimeInterval(-configuration.window)
+        let cutoff = sample.timestamp.addingTimeInterval(-Self.window)
         window.removeAll { $0.time < cutoff }
 
         guard shouldEvaluate(at: sample.timestamp) else { return }
@@ -65,14 +43,14 @@ struct GaitDetector {
             self.lastEvaluation = time
             return true
         }
-        guard time.timeIntervalSince(lastEvaluation) >= configuration.evaluationInterval else { return false }
+        guard time.timeIntervalSince(lastEvaluation) >= Self.evaluationInterval else { return false }
         self.lastEvaluation = time
         return true
     }
 
     private func windowShowsGait() -> Bool {
         guard let first = window.first, let last = window.last,
-            last.time.timeIntervalSince(first.time) >= configuration.window * 0.9,
+            last.time.timeIntervalSince(first.time) >= Self.window * 0.9,
             window.count >= 8
         else { return false }
 
@@ -83,14 +61,13 @@ struct GaitDetector {
         }
     }
 
-    /// Counts how often the axis swings back up through its own mean, and reads the cadence off
-    /// the interval between those crossings. The hysteresis band scales with the signal, so a
-    /// noisy-but-still axis cannot rattle out a plausible step rate.
+    /// Reads the cadence off upward crossings of the axis's own mean. The hysteresis band scales
+    /// with the signal, so a noisy-but-still axis cannot rattle out a plausible step rate.
     private func hasWalkingCadence(_ values: [Double], at times: [Date]) -> Bool {
         let mean = values.reduce(0, +) / Double(values.count)
         let variance = values.reduce(0) { $0 + ($1 - mean) * ($1 - mean) } / Double(values.count)
         let rms = variance.squareRoot()
-        guard rms >= configuration.minimumAmplitude else { return false }
+        guard rms >= Self.minimumAmplitude else { return false }
 
         let hysteresis = rms / 2
         var crossings: [Date] = []
@@ -107,6 +84,6 @@ struct GaitDetector {
         guard crossings.count >= 3, let first = crossings.first, let last = crossings.last else { return false }
         let span = last.timeIntervalSince(first)
         guard span > 0 else { return false }
-        return configuration.cadence.contains(Double(crossings.count - 1) / span)
+        return Self.cadence.contains(Double(crossings.count - 1) / span)
     }
 }

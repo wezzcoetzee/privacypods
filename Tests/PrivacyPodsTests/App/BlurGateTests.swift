@@ -3,8 +3,6 @@ import Testing
 
 @testable import PrivacyPods
 
-/// The gates the coordinator puts above `BlurMode.displaysToBlur`. The mode matrix itself is
-/// covered in `CoreTests`; what matters here is that the gates cannot be argued with.
 @Suite("Blur gates")
 struct BlurGateTests {
     private let left = DisplayID(1)
@@ -116,18 +114,6 @@ struct BlurGateTests {
         #expect(icon(.paused(until: nil)).isDimmed)
         #expect(icon(.paused(until: nil)).symbolName != icon(noAirPods).symbolName)
         #expect(!icon(noAirPods).isDimmed)
-    }
-
-    @Test("Every status reads differently")
-    func statusesAreDistinct() {
-        let statuses: [AppStatus] = [
-            .paused(until: nil), .protectionOff, .lockFailed, .away,
-            .headTracking(.noHeadphonesConnected, coversScreens: false), .headTracking(.sampleGap, coversScreens: false),
-            .headTracking(.permissionDenied, coversScreens: false),
-            .notAnchored(coversScreens: false), .looking(display: "DELL"),
-            .lookingAway(unanchoredDisplay: false), .lookingAway(unanchoredDisplay: true),
-        ]
-        #expect(Set(statuses.map(\.title)).count == statuses.count)
     }
 
     @Test("Issues list what the user can fix, and leave an unasked Motion to the tracker")

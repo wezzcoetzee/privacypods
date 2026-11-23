@@ -3,27 +3,14 @@ import Foundation
 import ScreenCaptureKit
 import os
 
-/// One ScreenCaptureKit stream for one display, running only while that display is blurred.
-///
-/// Every launch carries a generation, and `stop()`, `resize(to:)` and each retry bump it. That one
-/// counter closes two races: a `startCapture()` that returns after the capture was stopped hands
-/// back a live stream, which is stopped instead of left running for the lifetime of the process;
-/// and a frame blurred on the capture queue before the bump is dropped instead of painted into a
-/// window that has since been cleared.
-///
-/// A stream that fails, or that ScreenCaptureKit stops on us, is relaunched with a growing delay up
-/// to `maxLaunchAttempts` times per blur session. Once those are spent the capture reports itself
-/// unavailable and the overlay says so rather than freezing on a stale frame.
+/// `generation` is bumped on stop, resize and retry so a late `startCapture()` result or an in-flight
+/// frame from a replaced launch is dropped.
 @MainActor
 final class DisplayCapture {
-    /// Frames are downscaled to at most this many pixels wide before blurring. A blur applied at a
-    /// fraction of the resolution and stretched back up is both cheaper and harder to read than the
-    /// same blur at native size, so the sigma is scaled to match.
+    /// Blurring downscaled frames is cheaper and harder to read than at native size; sigma is scaled to match.
     private static let maxCaptureWidth: CGFloat = 960
-    /// Enough to keep the blur honest when a window moves, low enough to stay off the power graph.
     private static let framesPerSecond: Int32 = 4
-    /// One launch plus two retries. A stream that will not stay up three times running is not
-    /// coming back on its own, and retrying forever would hide the failure from the user.
+    /// One launch plus two retries; retrying forever would hide the failure from the user.
     private static let maxLaunchAttempts = 3
     private static let firstRetryDelay: Duration = .milliseconds(500)
 
@@ -58,8 +45,6 @@ final class DisplayCapture {
         queue = DispatchQueue(label: "dev.wesley.privacypods.capture.\(display.rawValue)", qos: .userInitiated)
     }
 
-    /// Idempotent: calling it again while running only updates the blur strength. A session that
-    /// has already spent its attempts stays unavailable until it is stopped and started again.
     func start(radius: Double) {
         self.radius = radius
         relay?.sigma = capturedSigma
@@ -82,7 +67,6 @@ final class DisplayCapture {
         Task { try? await running.stopCapture() }
     }
 
-    /// The display was rearranged or changed resolution, so the capture geometry is stale.
     func resize(to pointSize: CGSize) {
         guard pointSize != self.pointSize else { return }
         self.pointSize = pointSize
@@ -100,7 +84,6 @@ final class DisplayCapture {
         radius * Double(captureScale)
     }
 
-    /// True while `generation` is still the one the caller was launched under.
     private func isCurrent(_ generation: Int) -> Bool {
         isRunning && generation == self.generation
     }
@@ -128,8 +111,7 @@ final class DisplayCapture {
                 return
             }
 
-            // `sharingType = .none` already keeps the overlay out of the frame; excluding the app
-            // outright also keeps the settings and Status windows out of the blur.
+            // Excluding the app also keeps the Settings and Status windows out of the blur.
             let ownApplications = content.applications.filter {
                 $0.bundleIdentifier == Bundle.main.bundleIdentifier
             }
@@ -152,8 +134,7 @@ final class DisplayCapture {
             try stream.addStreamOutput(relay, type: .screen, sampleHandlerQueue: queue)
             try await stream.startCapture()
 
-            // A stop or a relaunch that landed while `startCapture` was in flight would otherwise
-            // leave this stream running with nobody holding it.
+            // A stop or relaunch during `startCapture` would leave this stream running unowned.
             guard isCurrent(generation) else {
                 try? await stream.stopCapture()
                 return
@@ -191,8 +172,7 @@ final class DisplayCapture {
         launch(after: Self.firstRetryDelay * (1 << (failures - 1)))
     }
 
-    /// ScreenCaptureKit reports a revoked or missing grant as an ordinary stream error, so the
-    /// permission itself is the only reliable way to tell the two failures apart.
+    /// ScreenCaptureKit reports a revoked grant as a plain stream error, so read the permission instead.
     private func currentReason() -> CaptureAvailability.Reason {
         ScreenRecordingPermission.status == .granted ? .captureFailed : .screenRecordingDenied
     }
@@ -219,13 +199,7 @@ final class DisplayCapture {
     }
 }
 
-/// The only object that lives on the capture queue, and it belongs to exactly one `SCStream`.
-///
-/// It blurs each frame there and hands on a `CGImage`, which is `Sendable` unlike the pixel buffer
-/// it was rendered from. One relay per stream is what lets it carry its launch generation as a
-/// constant, so a frame or a stop from a stream that has already been replaced is recognisable as
-/// stale on the main actor. Safe to share: every stored property is immutable except the blur
-/// sigma, which the main actor writes and the capture queue reads under a lock.
+/// One relay per `SCStream`, so it carries its launch generation as a constant. Only `sigma` is mutable, under a lock.
 private final class FrameRelay: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked Sendable {
     private let display: DisplayID
     private let renderer: BlurRenderer
@@ -263,8 +237,6 @@ private final class FrameRelay: NSObject, SCStreamOutput, SCStreamDelegate, @unc
     }
 
     func stream(_ stream: SCStream, didStopWithError error: any Error) {
-        // The error is not `Sendable`; its description is all the main actor needs, since the
-        // reason worth acting on is read from the permission rather than from the error.
         let notify = onStopped
         let generation = generation
         let message = error.localizedDescription

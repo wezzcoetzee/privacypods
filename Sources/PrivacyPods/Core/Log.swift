@@ -1,6 +1,5 @@
 import os
 
-/// One `Logger` per module, so `log stream --subsystem dev.wesley.privacypods` is readable.
 enum Log {
     private static let subsystem = "dev.wesley.privacypods"
 

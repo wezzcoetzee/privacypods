@@ -2,22 +2,13 @@ import AppKit
 import CoreBluetooth
 import IOKit.hid
 
-/// The `PermissionAuditing` implementation, and the only place the app reports on permissions.
-///
-/// It owns no TCC call of its own: Motion belongs to `HeadTracking` and Screen Recording to
-/// `Overlay`, so both are read through those modules. Motion is also the one permission whose
-/// request has a side effect on a sensor, which is why `AppCoordinator.request(_:)` is what the
-/// UI calls: it keeps the probe from running while the tracker is already started. Input Monitoring has no owning module
-/// because nothing degrades gracefully enough to need one, so it is read straight from IOKit,
-/// which (unlike `CGPreflightListenEventAccess`) can tell "denied" from "never asked".
+/// Input Monitoring is read from IOKit because `CGPreflightListenEventAccess` cannot tell denied from never asked.
 @MainActor
 final class PermissionAuditor: PermissionAuditing {
     private let motion: HeadphoneMotionTracker
-    /// Screen Recording's preflight call cannot distinguish "denied" from "never asked"; once
-    /// we have asked, a continued `false` means denied rather than not-yet-determined.
+    /// Screen Recording preflight cannot tell denied from never asked; once asked, a continued `false` means denied.
     private var hasRequestedScreenRecording: Bool
     private var cachedStatuses: [Permission: PermissionStatus] = [:]
-    /// Held only so the Bluetooth prompt stays up until it is answered.
     private var bluetoothProbe: CBCentralManager?
 
     init(motion: HeadphoneMotionTracker) {
@@ -33,10 +24,7 @@ final class PermissionAuditor: PermissionAuditing {
     func request(_ permission: Permission) {
         switch permission {
         case .motion:
-            // CoreMotion has no request call: the prompt fires on the first sample
-            // subscription, so asking means probing the stream, and the probe answers
-            // asynchronously. Once TCC has answered there is nothing left to prompt and the
-            // System Settings pane is the only way back.
+            // CoreMotion has no request call: the prompt fires on the first sample subscription, so asking means probing the stream.
             switch status(of: .motion) {
             case .notDetermined:
                 probeMotion()
@@ -46,8 +34,7 @@ final class PermissionAuditor: PermissionAuditing {
             case .denied, .unavailable:
                 NSWorkspace.shared.open(permission.settingsURL)
             }
-        // Both requests return `false` on the first call while their prompt is still on screen,
-        // so System Settings only opens once the user has already been asked and said no.
+        // Both requests return `false` while their prompt is on screen, so System Settings opens only after the user has been asked.
         case .screenRecording:
             let wasAsked = hasRequestedScreenRecording
             hasRequestedScreenRecording = true
@@ -71,9 +58,7 @@ final class PermissionAuditor: PermissionAuditing {
         refresh()
     }
 
-    /// The Motion probe opens the motion stream just long enough for TCC to answer and closes
-    /// it again, so it is the one status the auditor learns rather than reads, and it lands
-    /// after `request` has returned.
+    /// The Motion probe answers asynchronously, after `request` has returned.
     private func probeMotion() {
         Task { [weak self] in
             guard let self else { return }

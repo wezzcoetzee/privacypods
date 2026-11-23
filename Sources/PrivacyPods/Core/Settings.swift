@@ -1,11 +1,9 @@
 import Foundation
 
-/// When the blur is applied.
 enum BlurMode: String, Hashable, Sendable, Codable, CaseIterable, Identifiable {
     case off
-    /// Blur every display while the user is not looking at any of them.
     case whenLookingAway
-    /// Blur every display except the one being looked at. Blurs all of them while away.
+    /// Every display except the one being looked at; all of them while away.
     case unfocusedDisplays
 
     var id: Self { self }
@@ -18,7 +16,6 @@ enum BlurMode: String, Hashable, Sendable, Codable, CaseIterable, Identifiable {
         }
     }
 
-    /// Title case, for the menu bar's Blur submenu.
     var menuTitle: String {
         switch self {
         case .off: "Off"
@@ -28,14 +25,9 @@ enum BlurMode: String, Hashable, Sendable, Codable, CaseIterable, Identifiable {
     }
 }
 
-/// What to do about blur while head data is missing.
-///
-/// This governs blur only. A sensor gap never produces an away state and never locks the
-/// screen, whichever mode is selected.
+/// Governs blur only. A sensor gap never produces an away state or a lock in either mode.
 enum FailMode: String, Hashable, Sendable, Codable, CaseIterable, Identifiable {
-    /// Leave the screens readable during a gap.
     case open
-    /// Blur during a gap.
     case closed
 
     var id: Self { self }
@@ -48,7 +40,6 @@ enum FailMode: String, Hashable, Sendable, Codable, CaseIterable, Identifiable {
     }
 }
 
-/// What happens once the user is confirmed away.
 enum AwayPolicy: Hashable, Sendable, Codable {
     case doNothing
     case blurThenLock(blurAfter: TimeInterval, lockAfter: TimeInterval)
@@ -56,7 +47,6 @@ enum AwayPolicy: Hashable, Sendable, Codable {
 
     static let `default` = AwayPolicy.blurThenLock(blurAfter: 5, lockAfter: 30)
 
-    /// The response for an away state that began `elapsed` seconds ago.
     func response(awayFor elapsed: TimeInterval) -> AwayResponse {
         switch self {
         case .doNothing:
@@ -69,7 +59,7 @@ enum AwayPolicy: Hashable, Sendable, Codable {
     }
 }
 
-/// A global hotkey, in the units Carbon's `RegisterEventHotKey` wants.
+/// In the units Carbon's `RegisterEventHotKey` wants.
 struct Hotkey: Hashable, Sendable, Codable {
     struct Modifiers: OptionSet, Hashable, Sendable, Codable {
         var rawValue: UInt32
@@ -79,7 +69,7 @@ struct Hotkey: Hashable, Sendable, Codable {
         static let control = Modifiers(rawValue: 1 << 2)
         static let shift = Modifiers(rawValue: 1 << 3)
 
-        /// The mask `RegisterEventHotKey` expects (`cmdKey`, `shiftKey`, `optionKey`, `controlKey`).
+        /// `cmdKey`, `shiftKey`, `optionKey`, `controlKey`.
         var carbonFlags: UInt32 {
             var flags: UInt32 = 0
             if contains(.command) { flags |= 1 << 8 }
@@ -89,7 +79,6 @@ struct Hotkey: Hashable, Sendable, Codable {
             return flags
         }
 
-        /// Menu-order symbols, e.g. `⌃⌥⌘`.
         var symbols: String {
             var result = ""
             if contains(.control) { result += "⌃" }
@@ -108,35 +97,26 @@ struct Hotkey: Hashable, Sendable, Codable {
     static let reanchorDefault = Hotkey(keyCode: 0x0F, modifiers: [.control, .option, .command])
 }
 
-/// Everything the user can change. Persisted whole as JSON in `UserDefaults`.
 struct AppSettings: Hashable, Sendable, Codable {
     var isEnabled: Bool = true
-    /// When a timed pause ends. `nil` with `isEnabled` off is a pause until the user resumes.
+    /// `nil` with `isEnabled` off is a pause until the user resumes.
     var resumeAt: Date?
     var blurMode: BlurMode = .whenLookingAway
     var awayPolicy: AwayPolicy = .default
     var failMode: FailMode = .open
     var acceptanceCone: AcceptanceCone = .default
-    /// Seconds the gaze must stay outside every cone before the app calls it away. Switching
-    /// back to a display is immediate; only the exit is damped.
+    /// Only leaving a display is damped; switching back is immediate.
     var awayGrace: TimeInterval = 0.7
     var reanchorHotkey: Hotkey = .reanchorDefault
     var launchAtLogin: Bool = false
-    /// `CIGaussianBlur` radius in points.
+    /// In points.
     var blurRadius: Double = 70
-    /// Set once a lock PrivacyPods started has been confirmed, so the Status window stops offering
-    /// a test.
     var lockTested: Bool = false
-    /// Set once the first Status window has offered Launch at login, so it is offered once.
     var launchAtLoginOffered: Bool = false
-    /// Set once the owner has picked a `failMode`, rather than living with the default. First run
-    /// asks, with neither answer selected, because which way to fail is theirs to decide.
     var failModeChosen: Bool = false
-    /// Set once first-run setup has been finished. Latched: a later failed lock clears
-    /// `lockTested`, but it does not send the owner back through setup.
+    /// Latched: a later failed lock clears `lockTested` but does not send the owner back through setup.
     var setupFinished: Bool = false
 
-    /// The `UserDefaults` key the settings store reads and writes.
     static let defaultsKey = "dev.wesley.privacypods.settings"
 }
 
@@ -147,9 +127,7 @@ extension AppSettings {
         case failModeChosen, setupFinished
     }
 
-    /// Decodes field by field so that adding a setting does not invalidate a user's stored
-    /// preferences. A field that is present but malformed still throws; the settings store
-    /// treats that as "fall back to defaults".
+    /// Field by field, so adding a setting does not invalidate stored preferences.
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let fallback = AppSettings()
@@ -171,25 +149,19 @@ extension AppSettings {
         setupFinished = try container.decodeIfPresent(Bool.self, forKey: .setupFinished) ?? true
     }
 
-    /// Sets the fail mode as the owner's own answer, so first run stops asking for it.
     mutating func choose(failMode: FailMode) {
         self.failMode = failMode
         failModeChosen = true
     }
 
-    /// Whether every first-run step that is the owner's to do has been done. Connecting the
-    /// AirPods comes first, but the choice and the lock test can only follow it.
     var hasDoneSetupSteps: Bool {
         failModeChosen && (lockTested || awayPolicy == .doNothing)
     }
 }
 
 extension BlurMode {
-    /// The displays that should be blurred right now.
-    ///
-    /// This lives on the mode rather than in the engine so the overlay and the menu bar cannot
-    /// disagree about what is blurred. The caller is still responsible for the gates that sit
-    /// above it: a disabled app, a locked screen, or an away escalation all bypass this.
+    /// The caller still owns the gates above this: a disabled app, a locked screen and an away
+    /// escalation all bypass it.
     func displaysToBlur(gaze: GazeState, allDisplays: Set<DisplayID>, failMode: FailMode) -> Set<DisplayID> {
         switch self {
         case .off:

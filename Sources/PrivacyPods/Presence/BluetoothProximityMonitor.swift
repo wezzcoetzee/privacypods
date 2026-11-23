@@ -1,69 +1,46 @@
 import Foundation
 import IOBluetooth
 
-/// Which way the AirPods' signal strength is heading.
-///
-/// Deliberately coarse. The only reading source that works on macOS 26 is a ~1 second
-/// subprocess, so this can corroborate "walking away" but can never be the thing that notices it.
+/// Deliberately coarse: the only source that works on macOS 26 is a ~1 s subprocess, so this can
+/// corroborate walking away but never be what notices it.
 enum ProximityTrend: Hashable, Sendable {
-    /// No connected AirPods, or no source willing to give a number.
     case unavailable
     case steady
     case falling
 }
 
-/// Polls the connected AirPods' RSSI and reports the trend.
-///
-/// `IOBluetoothDevice.rawRSSI()` returns 0 for every connected device on macOS 26 — a "no data"
-/// sentinel, not a reading, and it raises no error (see `spike/README.md`). So IOBluetooth is
-/// used for what it is still good at, enumerating devices, and the number comes from
-/// `system_profiler`, which does return a live value at the cost of a slow subprocess. Proximity
-/// is optional corroboration throughout: if nothing answers, the monitor logs once, says
-/// `.unavailable` and stops spending subprocesses on it.
+/// `IOBluetoothDevice.rawRSSI()` returns 0 for every connected device on macOS 26, a "no data"
+/// sentinel with no error (see `spike/README.md`). IOBluetooth still enumerates devices; the
+/// number comes from `system_profiler`, a slow subprocess. If nothing answers, the monitor logs
+/// once and stops polling.
 @MainActor
 final class BluetoothProximityMonitor {
-    struct Configuration: Hashable, Sendable {
-        var pollInterval: TimeInterval = 1
-        /// `system_profiler` costs about a second of CPU, so it gets its own slower cadence.
-        var fallbackPollInterval: TimeInterval = 5
-        /// Consecutive empty `system_profiler` reads before the monitor gives up for the rest of
-        /// the session. A radio that will not report is worth one log line, not a subprocess
-        /// every five seconds forever.
-        var fallbackMissLimit = 5
-        /// How much of the recent history the trend is read from.
-        var trendWindow: TimeInterval = 20
-        /// Drop in dBm, comparing the older half of the window to the newer, that counts as
-        /// walking away. Signal strength is noisy indoors; this is a deliberately large step.
-        var fallingBy: Double = 6
-
-        static let `default` = Configuration()
-    }
+    private static let pollInterval: TimeInterval = 1
+    /// `system_profiler` costs about a second of CPU.
+    private static let fallbackPollInterval: TimeInterval = 5
+    /// Consecutive empty `system_profiler` reads before giving up for the session.
+    private static let fallbackMissLimit = 5
+    private static let trendWindow: TimeInterval = 20
+    /// dBm drop between the older and newer half of the window. Large because RSSI is noisy indoors.
+    private static let fallingBy: Double = 6
 
     private enum Source {
         case ioBluetooth
         case systemProfiler
     }
 
-    /// Apple's Bluetooth vendor ID, as published in the SDP device-identification record.
+    /// From the SDP device-identification record.
     private static let appleVendorID = 0x004C
 
-    private let configuration: Configuration
-    private let timeSource: any TimeSource
     private var readings: [(time: Date, rssi: Int)] = []
     private var source: Source = .ioBluetooth
     private var task: Task<Void, Never>?
     private var fallbackMisses = 0
     private var followedAddress: String?
-    /// Bumped by `stop()`. A `system_profiler` read can be several seconds out; stamping the poll
-    /// that started it lets the answer be dropped instead of resurrecting a stopped monitor.
+    /// Bumped by `stop()`, so a slow `system_profiler` answer cannot resurrect a stopped monitor.
     private var generation = 0
 
     private(set) var trend: ProximityTrend = .unavailable
-
-    init(configuration: Configuration = .default, timeSource: any TimeSource = SystemTimeSource()) {
-        self.configuration = configuration
-        self.timeSource = timeSource
-    }
 
     func start() {
         guard task == nil else { return }
@@ -83,18 +60,17 @@ final class BluetoothProximityMonitor {
         clearReadings()
     }
 
-    /// Takes one reading and returns how long to wait before the next, or `nil` when there is
-    /// nothing left worth polling for.
+    /// Returns the delay before the next poll, or `nil` to stop polling.
     private func poll(generation: Int) async -> TimeInterval? {
         guard let device = connectedHeadphones() else {
             clearReadings()
-            return configuration.fallbackPollInterval
+            return Self.fallbackPollInterval
         }
 
         if source == .ioBluetooth {
             if let rssi = usableRSSI(device.rawRSSI()) {
                 record(rssi)
-                return configuration.pollInterval
+                return Self.pollInterval
             }
             source = .systemProfiler
             Log.presence.notice("IOBluetooth RSSI is unavailable on this system; falling back to system_profiler")
@@ -108,27 +84,23 @@ final class BluetoothProximityMonitor {
         guard generation == self.generation else { return nil }
 
         guard let rssi else {
-            // A miss includes a timed-out read, so a wedged Bluetooth stack cannot leave the
-            // trend frozen at `.falling` while the away rules keep reading it.
+            // Includes a timed-out read, so a wedged Bluetooth stack cannot freeze the trend at `.falling`.
             clearReadings()
             fallbackMisses += 1
-            guard fallbackMisses < configuration.fallbackMissLimit else {
+            guard fallbackMisses < Self.fallbackMissLimit else {
                 Log.presence.notice("system_profiler gave no RSSI \(self.fallbackMisses, privacy: .public) times; carrying on without proximity")
                 return nil
             }
-            return configuration.fallbackPollInterval
+            return Self.fallbackPollInterval
         }
 
         fallbackMisses = 0
         record(rssi)
-        return configuration.fallbackPollInterval
+        return Self.fallbackPollInterval
     }
 
-    /// The connected device the head samples are most likely coming from.
-    ///
-    /// CoreMotion never names its source, so the pick is the closest honest approximation:
-    /// connected, audio class, and Apple's vendor ID in the SDP device-identification record,
-    /// which is what separates AirPods from the Bluetooth speaker also paired to this Mac.
+    /// CoreMotion never names its source, so this approximates it: connected, audio class, and
+    /// preferably Apple's vendor ID, which separates AirPods from a paired speaker.
     private func connectedHeadphones() -> IOBluetoothDevice? {
         guard let paired = IOBluetoothDevice.pairedDevices() as? [IOBluetoothDevice] else { return nil }
         // Match on class and connection state, not on name: AirPods keep stale pairing records
@@ -157,8 +129,7 @@ final class BluetoothProximityMonitor {
         return vendor.intValue == Self.appleVendorID
     }
 
-    /// 0 dBm would mean the transmitter is touching the antenna and 127 is the classic
-    /// "unavailable" marker; both mean "no data" here.
+    /// 0 and 127 are both "no data" markers.
     private func usableRSSI(_ raw: BluetoothHCIRSSIValue) -> Int? {
         let value = Int(raw)
         return value == 0 || value == 127 ? nil : value
@@ -170,9 +141,9 @@ final class BluetoothProximityMonitor {
     }
 
     private func record(_ rssi: Int) {
-        let now = timeSource.now
+        let now = Date()
         readings.append((now, rssi))
-        let cutoff = now.addingTimeInterval(-configuration.trendWindow)
+        let cutoff = now.addingTimeInterval(-Self.trendWindow)
         readings.removeAll { $0.time < cutoff }
         trend = currentTrend()
     }
@@ -180,13 +151,13 @@ final class BluetoothProximityMonitor {
     private func currentTrend() -> ProximityTrend {
         guard readings.count >= 4,
             let first = readings.first, let last = readings.last,
-            last.time.timeIntervalSince(first.time) >= configuration.trendWindow / 4
+            last.time.timeIntervalSince(first.time) >= Self.trendWindow / 4
         else { return .steady }
 
         let split = readings.count / 2
         let older = mean(readings.prefix(split).map(\.rssi))
         let newer = mean(readings.suffix(readings.count - split).map(\.rssi))
-        return newer - older <= -configuration.fallingBy ? .falling : .steady
+        return newer - older <= -Self.fallingBy ? .falling : .steady
     }
 
     private func mean(_ values: [Int]) -> Double {
@@ -195,10 +166,8 @@ final class BluetoothProximityMonitor {
     }
 }
 
-/// The only Bluetooth signal-strength source that still answers on macOS 26.
 private enum SystemProfilerBluetooth {
-    /// `system_profiler` normally answers in about a second. Anything much past that is a wedged
-    /// Bluetooth stack rather than a slow machine, and waiting it out would strand the poll.
+    /// It normally answers in about a second; much past that is a wedged Bluetooth stack.
     private static let timeout: TimeInterval = 3
 
     private struct Report: Decodable {
@@ -227,7 +196,7 @@ private enum SystemProfilerBluetooth {
         }
     }
 
-    /// Blocking, roughly a second and never more than `timeout`. Call it off the main actor.
+    /// Blocking for up to `timeout`. Call it off the main actor.
     static func rssi(forAddress address: String) -> Int? {
         guard !address.isEmpty, let data = run() else { return nil }
         guard let report = try? JSONDecoder().decode(Report.self, from: data) else {
@@ -276,10 +245,8 @@ private enum SystemProfilerBluetooth {
     }
 }
 
-/// Kills a subprocess that outruns its deadline, so a caller blocked on its pipe is released.
-///
-/// `Process` is not `Sendable`; `terminate()` is the one thing this touches from another thread
-/// and it is documented as safe there.
+/// Kills a subprocess that outruns its deadline, releasing a caller blocked on its pipe.
+/// `terminate()` is the only `Process` call made off-thread, and it is documented as safe there.
 private final class ProcessWatchdog: @unchecked Sendable {
     private enum Outcome {
         case pending
@@ -299,9 +266,8 @@ private final class ProcessWatchdog: @unchecked Sendable {
         DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + timeout, execute: work)
     }
 
-    /// Stops the watchdog and reports whether it had already killed the process. Claiming the
-    /// outcome under the lock is what stops a watchdog that fired at the same instant from
-    /// signalling `terminate()` at a process the caller has already reaped.
+    /// Reports whether the watchdog already killed the process. Claiming the outcome under the
+    /// lock stops a simultaneous fire from signalling a process the caller has already reaped.
     func cancel() -> Bool {
         work?.cancel()
         work = nil

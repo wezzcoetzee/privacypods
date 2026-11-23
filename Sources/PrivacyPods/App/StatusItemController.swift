@@ -1,8 +1,6 @@
 import AppKit
 import Observation
 
-/// The menu bar item: a `StatusIcon`, and a menu that leads with the status line, then anything
-/// the user needs to fix or know, then the controls.
 @MainActor
 final class StatusItemController: NSObject, NSMenuDelegate {
     private let coordinator: AppCoordinator
@@ -12,20 +10,13 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     private let menu = NSMenu()
     private let statusLineItem = NSMenuItem()
-    /// AppKit draws a disabled item in the tertiary colour whatever its attributed title says, and
-    /// an enabled one highlights under the pointer. The status line is neither a control nor a
-    /// footnote, so it is a plain label.
+    /// AppKit draws disabled items in the tertiary colour whatever the attributed title says, so the status line is a plain label.
     private let statusLabel = NSTextField(labelWithString: "")
     private let detailLabel = NSTextField(wrappingLabelWithString: "")
     private static let detailWidth: CGFloat = 260
-    /// Issue lines and the lock retry go straight after the status line and change with state, so
-    /// they are rebuilt on every refresh rather than toggled.
     private var transientItems: [NSMenuItem] = []
-    /// "Pause" with a submenu while running, "Resume" while paused: one slot, so the
-    /// menu does not change length when the state flips.
     private let pauseItem = NSMenuItem(title: "Pause", action: nil, keyEquivalent: "")
     private let pauseMenu = NSMenu()
-    /// Anchors the display under the pointer, which is the one whose menu bar was just clicked.
     private let reanchorItem = NSMenuItem(title: "Anchor This Display", action: #selector(reanchorNow), keyEquivalent: "")
     private var blurModeItems: [BlurMode: NSMenuItem] = [:]
     private let blurModeItem = NSMenuItem(title: "Blur", action: nil, keyEquivalent: "")
@@ -47,8 +38,6 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         let menuFontSize = NSFont.menuFont(ofSize: 0).pointSize
         statusLabel.font = .systemFont(ofSize: menuFontSize, weight: .semibold)
         statusLabel.textColor = .labelColor
-        // What the status costs and what to do about it, read where people look rather than in a
-        // tooltip nobody hovers for. Wraps instead of widening the menu.
         detailLabel.font = .menuFont(ofSize: menuFontSize)
         detailLabel.textColor = .labelColor
         detailLabel.maximumNumberOfLines = 0
@@ -63,7 +52,6 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         menu.addItem(.separator())
 
         pauseMenu.addItem(action("For 1 Hour", #selector(pauseForAnHour)))
-        // A pause with no end does not survive a restart, and the title says so.
         pauseMenu.addItem(action("Until I Resume or Quit", #selector(pauseUntilResumed)))
         pauseItem.target = self
         menu.addItem(pauseItem)
@@ -82,8 +70,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         menu.addItem(blurModeItem)
         menu.addItem(.separator())
 
-        // macOS 26 gives "Settings…" a gear by itself and, in this build, draws no custom menu
-        // images, so "Status…" cannot be given a matching one.
+        // macOS 26 gives "Settings…" a gear and draws no custom menu images, so "Status…" gets none.
         menu.addItem(action("Status…", #selector(openStatus)))
         menu.addItem(action("Settings…", #selector(openSettings), key: ","))
         menu.addItem(action("About PrivacyPods", #selector(showAbout)))
@@ -100,8 +87,6 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         refresh()
     }
 
-    /// Keeps the icon current outside of menu clicks by re-subscribing to the `@Observable`
-    /// coordinator every time a tracked property changes.
     private func observeState() {
         withObservationTracking {
             _ = coordinator.status
@@ -144,7 +129,6 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         }
         reanchorItem.isEnabled = coordinator.canReanchor
         reanchorItem.toolTip = coordinator.canReanchor ? nil : "Needs PrivacyPods running and AirPods in."
-        // A shortcut another app holds does nothing; showing it would advertise a dead key.
         reanchorItem.keyEquivalent = coordinator.isReanchorHotkeyAvailable ? settings.reanchorHotkey.keyEquivalent ?? "" : ""
         reanchorItem.keyEquivalentModifierMask = settings.reanchorHotkey.modifiers.eventFlags
         for (mode, item) in blurModeItems {
@@ -153,7 +137,6 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
         let issues = coordinator.issues
         let icon = StatusIcon(status: status, issues: issues, coversView: coordinator.coversView)
-        // Spoken the same way the badge is shown, so VoiceOver and sight agree on severity.
         let issueNote = issues.contains(where: \.badgesIcon) ? ", needs attention" : ""
         statusItem.button?.image = NSImage(systemSymbolName: icon.symbolName, accessibilityDescription: "PrivacyPods: \(status.summary)\(issueNote)")
         statusItem.button?.appearsDisabled = icon.isDimmed
@@ -165,7 +148,6 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             let item: NSMenuItem
             switch issue {
             case .permission:
-                // Asks straight away, with Status behind the prompt for the why.
                 item = action(issue.title, #selector(requestPermission(_:)))
             case .captureFailed:
                 item = action(issue.title, #selector(retryCapture))
@@ -177,7 +159,6 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             item.representedObject = issue
             return item
         }
-        // The status line, then the things to fix as their own group under it.
         if !transientItems.isEmpty { transientItems.append(.separator()) }
         for (offset, item) in transientItems.enumerated() {
             menu.insertItem(item, at: 2 + offset)
@@ -230,8 +211,6 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         NSApp.orderFrontStandardAboutPanel(nil)
     }
 
-    /// The README's supported headphones, iPhone caveat and known limitations, which between
-    /// them answer most "why isn't it working" questions.
     @objc private func showHelp() {
         NSWorkspace.shared.open(Self.helpURL)
     }

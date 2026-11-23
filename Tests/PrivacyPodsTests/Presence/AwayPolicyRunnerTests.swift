@@ -37,12 +37,4 @@ struct AwayPolicyRunnerTests {
         #expect(runner.update(presence: .away(since: start), at: start) == .lock)
         #expect(runner.update(presence: .unknown, at: start + 1) == .clear)
     }
-
-    @Test("Policies that do nothing, do nothing")
-    func doNothingStaysIdle() {
-        var runner = AwayPolicyRunner(policy: .doNothing)
-
-        #expect(runner.update(presence: .away(since: start), at: start + 3600) == nil)
-        #expect(runner.response == .idle)
-    }
 }

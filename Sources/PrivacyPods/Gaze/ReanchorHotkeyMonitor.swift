@@ -1,19 +1,12 @@
 import Carbon.HIToolbox
 import Foundation
 
-/// `RegisterEventHotKey`'s four-character owner tag, read back from the event so this monitor
-/// ignores hotkeys registered by anyone else. A `@convention(c)` callback can capture nothing,
-/// so it has to live out here.
+/// Owner tag read back from the event; global because a `@convention(c)` callback cannot capture.
 private let reanchorSignature: OSType = 0x5050_6F64  // 'PPod'
 
-/// The global re-anchor hotkey.
-///
-/// Carbon rather than an `NSEvent` monitor on purpose: `RegisterEventHotKey` needs no Input
-/// Monitoring permission, and this hotkey is precisely the fallback for the case where that
-/// permission is missing.
+/// Carbon `RegisterEventHotKey` needs no Input Monitoring, which is why it is used over `NSEvent`.
 @MainActor
 final class ReanchorHotkeyMonitor {
-    /// Single-consumer, carrying the instant of each press.
     let events: AsyncStream<Date>
 
     private let continuation: AsyncStream<Date>.Continuation
@@ -28,13 +21,8 @@ final class ReanchorHotkeyMonitor {
         continuation.finish()
     }
 
-    /// Registers `hotkey`, replacing whatever was registered before. Safe to call on every
-    /// settings change.
-    ///
-    /// Returns `false` when the combination is unavailable, which is usually another app
-    /// holding it. The re-anchor hotkey is the only anchoring route left when Input Monitoring
-    /// is denied, so a silent failure there is a dead app; the caller has to say so, which is
-    /// why the result is not discardable.
+    /// Returns `false` when the combination is taken; callers must surface it, as this is the only
+    /// anchoring route when Input Monitoring is denied.
     func register(_ hotkey: Hotkey) -> Bool {
         unregister()
 

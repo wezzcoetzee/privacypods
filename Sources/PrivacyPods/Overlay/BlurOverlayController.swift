@@ -1,18 +1,7 @@
 import AppKit
 
-/// Overlay's implementation of `OverlayControlling`: one blur window per display, created the
-/// first time that display is asked for and torn down when it is unplugged.
-///
-/// `setBlurred` is absolute rather than incremental, so the whole controller is a projection of the
-/// last request onto the currently attached displays. A display that disappears while blurred takes
-/// its window with it; if it comes back, the next request rebuilds it.
-///
-/// It also aggregates what each display's capture reports about itself, because "the screen is
-/// covered but not blurred" is a state the user has to be able to see from the menu bar.
 @MainActor
 final class BlurOverlayController: NSObject, OverlayControlling {
-    /// Single-consumer, in the house style: emits on change only. Read `captureAvailability` for
-    /// the value at subscribe time.
     let captureEvents: AsyncStream<CaptureAvailability>
     private(set) var captureAvailability: CaptureAvailability = .available
 
@@ -21,8 +10,6 @@ final class BlurOverlayController: NSObject, OverlayControlling {
     private var displays: [DisplayID: DisplayInfo]
     private var surfaces: [DisplayID: DisplaySurface] = [:]
     private var surfaceAvailability: [DisplayID: CaptureAvailability] = [:]
-    /// The last request from the engine. `nil` until the first `setBlurred`, which is the only
-    /// thing that can establish a radius.
     private var request: (displays: Set<DisplayID>, radius: Double, notices: [DisplayID: String])?
 
     override init() {
@@ -86,8 +73,6 @@ final class BlurOverlayController: NSObject, OverlayControlling {
         captureContinuation.yield(combined)
     }
 
-    /// The worst news any display has. A missing permission outranks a failed stream because it is
-    /// the one the user can do something about.
     nonisolated static func combined(_ availabilities: some Sequence<CaptureAvailability>) -> CaptureAvailability {
         var anyFailed = false
         for availability in availabilities {

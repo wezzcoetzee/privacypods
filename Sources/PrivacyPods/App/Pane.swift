@@ -1,11 +1,6 @@
 import SwiftUI
 
-/// The layout the Settings and Status windows share: true black, white text, sections separated
-/// by hairlines rather than cards. A grouped `Form` keeps its rounded section fills even on a
-/// black background, so the windows lay themselves out with these instead.
-///
-/// The pane has no scroll view: the window takes its size from the content, so nothing is ever
-/// below the fold and there is no empty space under the last row.
+/// A grouped `Form` keeps rounded fills on black, hence these; no scroll view, so the window sizes to its content.
 struct Pane<Content: View>: View {
     let width: CGFloat
     @ViewBuilder var content: Content
@@ -39,9 +34,7 @@ struct PaneSection<Content: View>: View {
     }
 }
 
-/// A `LabeledContent` as one line of a pane: label left, value or control right, hairline under.
-/// Going through `LabeledContent` keeps the label attached to the control for VoiceOver. Values
-/// are white like everything else; a view that wants one quieter or louder colours it itself.
+/// Uses `LabeledContent` so VoiceOver keeps the label attached to the control.
 private struct PaneRowStyle: LabeledContentStyle {
     func makeBody(configuration: Configuration) -> some View {
         VStack(spacing: 0) {
@@ -58,9 +51,6 @@ private struct PaneRowStyle: LabeledContentStyle {
     }
 }
 
-/// A line under a row, with the icon carrying the meaning as well as the colour. A warning is
-/// orange and is something the headline counts; information stays white, because orange means
-/// a thing to fix and nothing else.
 struct PaneNotice: View {
     enum Tone {
         case warning, info
@@ -78,8 +68,6 @@ struct PaneNotice: View {
     }
 }
 
-/// A sentence under a section title that says what the rows below it are about, laid out as a
-/// row of its own.
 struct PaneLead: View {
     let text: String
 

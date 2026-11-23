@@ -6,7 +6,7 @@ import Testing
 @Suite("Away evidence")
 struct AwayEvidenceTests {
     private let start = Date(timeIntervalSince1970: 1_000_000)
-    private let grace = AwayEvidence.Configuration.default.disconnectIdleGrace
+    private let grace = AwayEvidence.disconnectIdleGrace
 
     private func worn(walking: Bool = false, gaze: GazeState = .looking(DisplayID(1))) -> AwayEvidence {
         var evidence = AwayEvidence()
@@ -63,7 +63,7 @@ struct AwayEvidenceTests {
 
     @Test("Only a disconnect that interrupts recent wear is evidence")
     func staleWearIsNotEvidence() {
-        let window = AwayEvidence.Configuration.default.recentWearWindow
+        let window = AwayEvidence.recentWearWindow
 
         // They take the AirPods off and leave them on the desk; the app only sees silence.
         // The battery dies well after that, and nobody walked anywhere.
@@ -97,7 +97,7 @@ struct AwayEvidenceTests {
 
     @Test("Input clears away immediately, and holds only as long as it is evidence")
     func inputClearsAway() {
-        let window = AwayEvidence.Configuration.default.inputPresenceWindow
+        let window = AwayEvidence.inputPresenceWindow
         var evidence = worn(walking: true, gaze: .away)
         #expect(evidence.resolve(at: start).isAway)
 

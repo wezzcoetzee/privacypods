@@ -50,9 +50,9 @@ flowchart TB
 Solid arrows are the only permitted couplings. Everything crossing one is a `Core` type.
 
 One gate sits above all of it, in `AppCoordinator`: enabled and unlocked. The sensors, the
-overlay and the lock all sit behind that same predicate
-(`AppCoordinator.isRunGateOpen(isEnabled:isLocked:)`), so a disabled app or an already-locked
-screen neither watches nor touches the screen, whatever the away policy has escalated to.
+overlay and the lock all sit behind that same predicate (`AppCoordinator.isRunGateOpen`), so a
+disabled app or an already-locked screen neither watches nor touches the screen, whatever the
+away policy has escalated to.
 Closing the gate stops every provider, cancels the one-second escalation tick, clears the
 overlay and resets the away policy, so an away session cannot carry into the next one. The
 anchors go with them, because a restarted motion stream is a new reference frame anyway, and

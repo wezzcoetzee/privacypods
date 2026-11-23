@@ -1,22 +1,16 @@
 import Foundation
 
-/// Whether the headphones are on a head that the app can read.
-///
-/// There is deliberately no `notWorn` case. The sensors cannot distinguish "in the case",
-/// "on the desk" and "connected but silent", and conflating any of them with "the user left"
-/// is the failure mode that makes an app like this unusable. Everything that is not a live
-/// stream of samples is `unknown`, and `unknown` never justifies blurring away or locking.
+/// There is deliberately no `notWorn` case. The sensors cannot tell "in the case", "on the desk"
+/// and "connected but silent" apart, so anything that is not a live sample stream is `unknown`,
+/// and `unknown` never justifies blurring away or locking.
 enum WearState: Hashable, Sendable {
     case worn
     case unknown(Reason)
 
     enum Reason: Hashable, Sendable {
-        /// No headphones with a gyro are connected to this Mac.
         case noHeadphonesConnected
-        /// Connected, but samples stopped arriving. In the case, off the head, or handed
-        /// over to an iPhone by automatic device switching.
+        /// Connected, but samples stopped: off the head, in the case, or taken by an iPhone.
         case sampleGap
-        /// This Mac or these headphones cannot provide head motion at all.
         case motionUnavailable
         case permissionDenied
     }
@@ -24,11 +18,10 @@ enum WearState: Hashable, Sendable {
     var isWorn: Bool { self == .worn }
 }
 
-/// Which display, if any, the user is looking at.
 enum GazeState: Hashable, Sendable {
     case looking(DisplayID)
     case away
-    /// No trustworthy head data. Distinct from `away`, and must never be substituted for it.
+    /// No trustworthy head data. Must never be substituted for `away`.
     case unknown
 
     var display: DisplayID? {
@@ -36,7 +29,6 @@ enum GazeState: Hashable, Sendable {
     }
 }
 
-/// Whether the user is at the machine.
 enum PresenceState: Hashable, Sendable {
     case present
     /// A sensor gap. Cannot escalate to blur-and-lock on its own.
@@ -48,10 +40,8 @@ enum PresenceState: Hashable, Sendable {
     }
 }
 
-/// What the away policy wants done, given how long the user has been away.
-///
-/// Ordered so a driver can compare against what it has already done and only act on escalation.
-enum AwayResponse: Int, Hashable, Sendable, Comparable, CaseIterable {
+/// Ordered so a driver can act only on escalation.
+enum AwayResponse: Int, Hashable, Sendable, Comparable {
     case idle = 0
     case blur = 1
     case lock = 2
@@ -60,9 +50,6 @@ enum AwayResponse: Int, Hashable, Sendable, Comparable, CaseIterable {
 }
 
 /// Whether the overlay is showing a blurred picture of a display, or covering it blind.
-///
-/// The two failures are worth telling apart in the one line the overlay prints: a missing
-/// permission is fixed in System Settings, a dead stream by retrying it. Neither uncovers the screen.
 enum CaptureAvailability: Hashable, Sendable {
     case available
     case unavailable(Reason)
@@ -72,7 +59,6 @@ enum CaptureAvailability: Hashable, Sendable {
         case captureFailed
     }
 
-    /// The line the overlay shows while it cannot blur; `nil` whenever it can.
     var notice: String? {
         switch self {
         case .available: nil

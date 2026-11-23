@@ -1,11 +1,10 @@
 import Foundation
 
-/// A TCC permission the app needs. Listed in the Status window in the order it is declared.
+/// Listed in the Status window in declaration order.
 enum Permission: String, Hashable, Sendable, CaseIterable, Identifiable {
     case motion
     case screenRecording
     case inputMonitoring
-    /// Asked by macOS the first time the proximity monitor lists paired devices.
     case bluetooth
 
     var id: Self { self }
@@ -32,13 +31,10 @@ enum Permission: String, Hashable, Sendable, CaseIterable, Identifiable {
         }
     }
 
-    /// What to look for in System Settings, for a permission listed there under another name.
-    /// Only worth saying once the owner is on their way there.
     var systemSettingsNote: String? {
         self == .screenRecording ? "System Settings lists it as Screen & System Audio Recording." : nil
     }
 
-    /// The System Settings pane to open when the permission cannot be prompted for in-process.
     var settingsURL: URL {
         let anchor =
             switch self {
@@ -55,6 +51,5 @@ enum PermissionStatus: Hashable, Sendable {
     case granted
     case denied
     case notDetermined
-    /// Cannot apply on this machine, e.g. no headphones with a gyro have ever been connected.
     case unavailable
 }
